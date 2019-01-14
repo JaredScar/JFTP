@@ -1,4 +1,5 @@
 # JFTP
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/TheWolfBadger/JFTP/blob/master/LICENSE)
 Your #1 FTP (File Transfer Protocol) program made by Jared Scarito! JFTP was made with a few key
 concepts in mind. I needed to be able to upload files continuously to my raspberry pi's server
 as quick as I created new releases of my programs and/or applications. I needed a way in which
