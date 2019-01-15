@@ -1,34 +1,37 @@
 package com.jaredscarito.jftp.controller;
 
+import com.jaredscarito.jftp.model.FTPConnect;
+import com.jaredscarito.jftp.model.FileWalker;
 import com.jaredscarito.jftp.model.PaneFile;
 import javafx.application.Application;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
-import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.net.ftp.FTPFile;
 
-import javax.swing.filechooser.FileSystemView;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileSystem;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.concurrent.TimeUnit;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainController extends Application {
     public Stage mainStage;
@@ -41,6 +44,7 @@ public class MainController extends Application {
         primaryStage.setScene(mainScene);
         primaryStage.show();
         this.mainStage = primaryStage;
+        this.main = this;
 }
 
     private MenuItem[] jftpItems;
@@ -125,12 +129,51 @@ public class MainController extends Application {
         }
     }
     public void setupConnectButton() {
+        this.connectButton.getStyleClass().add("connect-btn");
+        this.connectButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+            @Override
+            public void handle(MouseEvent event) {
+                if(event.getButton() == MouseButton.SECONDARY) {
+                    String host = hostField.getText();
+                    int port = Integer.parseInt(portField.getText());
+                    String username = userField.getText();
+                    String pass = passField.getText();
+                    connection = new FTPConnect(main, host, port, username, pass);
+                    if(connection.connect()) {
+                        for(FTPFile file : connection.getFiles()) {
+                            String name = file.getName();
+                            String size = humanReadableByteCount(file.getSize(), true);
+                            DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                            String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
+                            ftpFilesView.getItems().add(new PaneFile(name, size, lastModified));
+                        }
+                        connectButton.setText("Disconnect");
+                    }
+                }
+            }
+        });
+    }
+    public void setupActionButtons() {
         // TODO
     }
 
+    public MainController main;
+
+    public FTPConnect connection;
+
     public Button connectButton;
+    private TextField hostField;
+    private TextField portField;
+    private TextField userField;
+    private TextField passField;
+
     public TableView myFilesView;
+    public TableView ftpFilesView;
     public Button[] leftActionButtons;
+    public Button[] rightActionButtons;
+
+    public String myCurrentDirectory = "Root";
+    public String ftpCurrentDirectory = "Root";
 
     public Scene getMainScene() {
         VBox root = new VBox();
@@ -191,6 +234,10 @@ public class MainController extends Application {
         connectBtn.getStyleClass().add("login-button");
         loginPane.add(connectBtn, 4, 1);
         this.connectButton = connectBtn;
+        this.hostField = hostField;
+        this.portField = portField;
+        this.userField = userField;
+        this.passField = passField;
         setupConnectButton();
 
         mainPane.add(loginPane, 0, 1);
@@ -209,7 +256,7 @@ public class MainController extends Application {
         TableColumn myFileModified = new TableColumn("Last Modified");
         myFileModified.setCellValueFactory(new PropertyValueFactory<>("lastModified"));
         myFilesView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        //myFilesView.getItems().add(new PaneFile("FileName", 100, "1/14/19")); // TODO How to add files to tableView
+        //myFilesView.getItems().add(new PaneFile("FileName", 100, "1/14/19")); // TODO NOTE: How to add files to tableView
         /** /
         myFileNamesCol.setResizable(false);
         myFileSizesCol.setResizable(false);
@@ -256,10 +303,70 @@ public class MainController extends Application {
                 case 3:
                     //reload
                     iconButton.setId("reload-1");
+                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                        @Override
+                        public void handle(MouseEvent event) {
+                            myFilesView.getItems().clear();
+                            new Timer().schedule(new TimerTask() {
+                                @Override
+                                public void run() {
+                                    if(!myCurrentDirectory.equals("Root")) {
+                                        for (File file : new File(myCurrentDirectory).listFiles()) {
+                                            String fileSize = humanReadableByteCount(file.length(), true);
+                                            FileTime lastModified = null;
+                                            try {
+                                                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
+                                            } catch (IOException ex) {
+                                            }
+                                            if (lastModified != null) {
+                                                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                                                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
+                                            } else {
+                                                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
+                                            }
+                                        }
+                                    } else {
+                                        for(File file : File.listRoots()) {
+                                            String fileSize = humanReadableByteCount((file.getTotalSpace() - file.getFreeSpace()), true);
+                                            FileTime lastModified = null;
+                                            try {
+                                                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
+                                            } catch (IOException ex) {}
+                                            if(lastModified !=null) {
+                                                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                                                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
+                                            } else {
+                                                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
+                                            }
+                                        }
+                                    }
+                                }
+                            }, 100L);
+                        }
+                    });
                     break;
                 case 4:
                     //home
                     iconButton.setId("home-1");
+                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                        @Override
+                        public void handle(MouseEvent event) {
+                            myFilesView.getItems().clear();
+                            for(File file : File.listRoots()) {
+                                String fileSize = humanReadableByteCount((file.getTotalSpace() - file.getFreeSpace()), true);
+                                FileTime lastModified = null;
+                                try {
+                                    lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
+                                } catch (IOException ex) {}
+                                if(lastModified !=null) {
+                                    DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                                    myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
+                                } else {
+                                    myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
+                                }
+                            }
+                        }
+                    });
                     break;
             }
             iconButton.setGraphic(imageView);
@@ -269,13 +376,15 @@ public class MainController extends Application {
         }
         this.leftActionButtons = leftActionButtons;
         filesPane.add(iconsBox, 1, 0);
+        /**
+         * USER CLIENT FTP VIEW FILES:
+         */
         // Setup FileSystemView for user client
         File[] files;
         files = File.listRoots();
         /**/
         for(File file : files) {
-            System.out.println(file.getName());
-            String fileSize = getSizeFromBytes(file.getTotalSpace());
+            String fileSize = humanReadableByteCount((file.getTotalSpace() - file.getFreeSpace()), true);
             FileTime lastModified = null;
             try {
                 lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
@@ -287,32 +396,80 @@ public class MainController extends Application {
                 this.myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
             }
         }
-        // TODO Add Context-Menus for items
+        // Add ContextMenu for table
+        ContextMenu cm = new ContextMenu();
+        MenuItem copyItem = new MenuItem("Copy");
+        MenuItem pasteItem = new MenuItem("Paste");
+        cm.getItems().addAll(copyItem, pasteItem);
+        this.myFilesView.setContextMenu(cm);
+        // Add actions for ContextMenu
+        copyItem.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                // TODO Copy the directory/file
+            }
+        });
+        pasteItem.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                // TODO Paste the copied directory/file in selected directory
+            }
+        });
+        // Set up double click action on table rows
+        this.myFilesView.setOnMouseClicked(new EventHandler<MouseEvent>() {
+            private int clickCount = 0;
+            @Override
+            public void handle(MouseEvent event) {
+                if(event.getButton() == MouseButton.PRIMARY) {
+                    clickCount++;
+                    new Timer().schedule(new TimerTask() {
+                        @Override
+                        public void run() {
+                            clickCount = 0;
+                        }
+                    }, 500L);
+                    if(clickCount == 2) {
+                        clickCount = 0;
+                        // TODO Open sub-directories if is directory
+                        PaneFile pf = (PaneFile) myFilesView.getSelectionModel().getSelectedItem();
+                        File file = new File(pf.getFilename());
+                        myCurrentDirectory = file.getAbsolutePath();
+                        if(file.isDirectory()) {
+                            myFilesView.getItems().clear();
+                            for (File subFile : file.listFiles()) {
+                                String fileSize = humanReadableByteCount((subFile.length()), true);
+                                // TODO Figure out File Size
+                                FileTime lastModified = null;
+                                try {
+                                    lastModified = Files.getLastModifiedTime(Paths.get(subFile.getAbsolutePath()));
+                                } catch (IOException ex) {}
+                                if(lastModified !=null) {
+                                    DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                                    myFilesView.getItems().add(new PaneFile(subFile.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
+                                } else {
+                                    myFilesView.getItems().add(new PaneFile(subFile.getAbsolutePath(), fileSize, "N/A"));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
         /**/
+        /**
+         * FTP SERVER FILES VIEW:
+         */
 
         root.getChildren().add(mainPane);
         return mainScene;
     }
 
-    public static String getSizeFromBytes(long bytesInp) {
-        long bytes = bytesInp;
-        long kilobytes = (bytes / 1024);
-        long megabytes = (kilobytes / 1024);
-        long gigabytes = (megabytes / 1024);
-        long terabytes = (gigabytes / 1024);
-        long petabytes = (terabytes / 1024);
-        long exabytes = (petabytes / 1024);
-        long zettabytes = (exabytes / 1024);
-        long yottabytes = (zettabytes / 1024);
-        String[] type = new String[] {"B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
-        int track = 0;
-        for(int i = 0; i < 8; i++) {
-            if((bytes / 1024) > 0) {
-                bytes /= 1024;
-                track += 1;
-            }
-        }
-        return bytes + " " + type[track];
+    public static String humanReadableByteCount(long bytes, boolean si) {
+        int unit = si ? 1000 : 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = (si ? "KMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
+        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
     }
 
 
