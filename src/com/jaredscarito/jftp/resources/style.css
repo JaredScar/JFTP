@@ -1,0 +1,21 @@
+/* Padding: Top Left Bottom Right */
+.main-pane {}
+.login-pane {}
+.login-label {}
+.login-textfield {}
+.login-button {}
+.files-pane {}
+.my-files-label {}
+.icons-box {
+    -fx-padding: 200px 0 0 0;
+}
+.icon-button {
+    -fx-background-color: transparent;
+}
+.icon-button:hover {
+    -fx-opacity: .6;
+    -fx-cursor: hand;
+}
+.icon-button:pressed {
+    -fx-opacity: .3;
+}
