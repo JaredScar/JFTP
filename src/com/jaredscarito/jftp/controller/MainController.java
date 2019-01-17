@@ -41,6 +41,7 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -354,7 +355,27 @@ public class MainController extends Application {
                         @Override
                         public void handle(MouseEvent event) {
                             if(event.getButton() == MouseButton.PRIMARY) {
-                                // TODO - Needs progress bar to be implemented as well
+                                // TODO (possible bugs)
+                                for(Object obj : myFilesView.getSelectionModel().getSelectedItems()) {
+                                    PaneFile selected = (PaneFile) obj;
+                                    File file = new File(myCurrentDirectory + "/" + selected.getFilename());
+                                    if(file.isDirectory()) {
+                                        try {
+                                            FileUtils.deleteDirectory(file);
+                                        } catch (IOException e) {
+                                            // Failed deleting
+                                            JOptionPane.showMessageDialog(null, "FAILED: UNABLE TO DELETE DIRECTORY '" + selected.getFilename() + "'",
+                                                    "ERROR", JOptionPane.ERROR_MESSAGE);
+                                        }
+                                    } else {
+                                        System.out.println(file.exists() + " " + myCurrentDirectory + selected.getFilename());
+                                        if(!file.delete()) {
+                                            JOptionPane.showMessageDialog(null, "FAILED: UNABLE TO DELETE FILE '" + selected.getFilename() + "'",
+                                                    "ERROR", JOptionPane.ERROR_MESSAGE);
+                                        }
+                                    }
+                                    setupMyCurrentDirectory();
+                                }
                             }
                         }
                     });
