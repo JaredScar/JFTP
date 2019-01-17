@@ -10,15 +10,15 @@ public class CopyFile {
         SERVER;
     }
     private MainController main;
-    private File file;
+    private File[] file;
     private FtpFileType copyFileType;
-    public CopyFile(MainController main, File file, FtpFileType copyFileType) {
+    public CopyFile(MainController main, File[] file, FtpFileType copyFileType) {
         this.file = file;
         this.main = main;
         this.copyFileType = copyFileType;
     }
 
-    public boolean pasteFile(String location) {
+    public boolean pasteFiles(String location) {
         return false; // TODO
     }
 }

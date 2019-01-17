@@ -4,6 +4,7 @@ import com.jaredscarito.jftp.model.FTPConnect;
 import com.jaredscarito.jftp.model.FileWalker;
 import com.jaredscarito.jftp.model.PaneFile;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.event.EventHandler;
@@ -11,6 +12,13 @@ import javafx.event.EventType;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -19,9 +27,12 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.net.ftp.FTPFile;
 
+import javax.swing.*;
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
@@ -42,6 +53,13 @@ public class MainController extends Application {
         mainScene.getStylesheets().add("com/jaredscarito/jftp/resources/style.css");
         primaryStage.setTitle("JFTP");
         primaryStage.setScene(mainScene);
+        primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+            @Override
+            public void handle(WindowEvent t) {
+                Platform.exit();
+                System.exit(0);
+            }
+        });
         primaryStage.show();
         this.mainStage = primaryStage;
         this.main = this;
@@ -66,7 +84,13 @@ public class MainController extends Application {
                         break;
                     case "Exit":
                         // Exit the program
-                        item.setOnAction(event -> mainStage.close());
+                        item.setOnAction(new EventHandler<ActionEvent>() {
+                            @Override
+                            public void handle(ActionEvent event) {
+                                mainStage.close();
+                                System.exit(0);
+                            }
+                        });
                         break;
                 }
             }
@@ -133,9 +157,12 @@ public class MainController extends Application {
         this.connectButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
             @Override
             public void handle(MouseEvent event) {
-                if(event.getButton() == MouseButton.SECONDARY) {
+                if(event.getButton() == MouseButton.PRIMARY) {
                     String host = hostField.getText();
-                    int port = Integer.parseInt(portField.getText());
+                    int port = 0;
+                    try {
+                        port = Integer.parseInt(portField.getText());
+                    } catch (NumberFormatException ex) {}
                     String username = userField.getText();
                     String pass = passField.getText();
                     connection = new FTPConnect(main, host, port, username, pass);
@@ -148,13 +175,12 @@ public class MainController extends Application {
                             ftpFilesView.getItems().add(new PaneFile(name, size, lastModified));
                         }
                         connectButton.setText("Disconnect");
+                    } else {
+                        JOptionPane.showMessageDialog(null, "FAILED TO CONNECT TO FTP SERVER", "ERROR",JOptionPane.ERROR_MESSAGE);
                     }
                 }
             }
         });
-    }
-    public void setupActionButtons() {
-        // TODO
     }
 
     public MainController main;
@@ -169,11 +195,9 @@ public class MainController extends Application {
 
     public TableView myFilesView;
     public TableView ftpFilesView;
-    public Button[] leftActionButtons;
-    public Button[] rightActionButtons;
 
-    public String myCurrentDirectory = "Root";
-    public String ftpCurrentDirectory = "Root";
+    public String myCurrentDirectory = "ROOT1337";
+    public String ftpCurrentDirectory = "ROOT1337";
 
     public Scene getMainScene() {
         VBox root = new VBox();
@@ -269,6 +293,7 @@ public class MainController extends Application {
         ScrollPane myFilePane = new ScrollPane();
         myFilePane.setContent(myFilesView);
         myFilesView.setPrefSize(400, 600);
+        myFilesView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         filesPane.add(myFilePane, 0, 0);
 
         mainPane.add(filesPane, 0, 3);
@@ -282,6 +307,7 @@ public class MainController extends Application {
         Button iconButton;
         Button[] leftActionButtons = new Button[images.length];
         int count = 0;
+        // LEFT ACTION BUTTONS
         for(ImageView imageView : images) {
             imageView.setFitWidth(30);
             imageView.setFitHeight(30);
@@ -289,16 +315,49 @@ public class MainController extends Application {
             iconButton.getStyleClass().add("icon-button");
             switch (count) {
                 case 0:
-                    // newFolder
+                    // newFolder or new file
                     iconButton.setId("new-folder-1");
+                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                        @Override
+                        public void handle(MouseEvent event) {
+                            if(event.getButton() == MouseButton.PRIMARY) {
+                                // TODO create table row with TextFields which have action set up on 'enter' key to implement
+                            }
+                        }
+                    });
                     break;
                 case 1:
                     //folder-up
                     iconButton.setId("folder-up-1");
+                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                        @Override
+                        public void handle(MouseEvent event) {
+                            if(event.getButton() == MouseButton.PRIMARY) {
+                                if(!myCurrentDirectory.equals("ROOT1337")) {
+                                    String[] splitSlashes = myCurrentDirectory.split("/");
+                                    if(myCurrentDirectory.split("\\\\").length > 1) {
+                                        String lastSlashString = "/" + splitSlashes[splitSlashes.length - 1];
+                                        myCurrentDirectory = myCurrentDirectory.replace(lastSlashString, "");
+                                        setupMyCurrentDirectory();
+                                    } else {
+                                        setupMyRootDirectory();
+                                    }
+                                }
+                            }
+                        }
+                    });
                     break;
                 case 2:
-                    //delete-folder
+                    //delete-folder or file
                     iconButton.setId("delete-folder-1");
+                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                        @Override
+                        public void handle(MouseEvent event) {
+                            if(event.getButton() == MouseButton.PRIMARY) {
+                                // TODO - Needs progress bar to be implemented as well
+                            }
+                        }
+                    });
                     break;
                 case 3:
                     //reload
@@ -310,35 +369,10 @@ public class MainController extends Application {
                             new Timer().schedule(new TimerTask() {
                                 @Override
                                 public void run() {
-                                    if(!myCurrentDirectory.equals("Root")) {
-                                        for (File file : new File(myCurrentDirectory).listFiles()) {
-                                            String fileSize = humanReadableByteCount(file.length(), true);
-                                            FileTime lastModified = null;
-                                            try {
-                                                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
-                                            } catch (IOException ex) {
-                                            }
-                                            if (lastModified != null) {
-                                                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                                                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
-                                            } else {
-                                                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
-                                            }
-                                        }
+                                    if(!myCurrentDirectory.equals("ROOT1337")) {
+                                        setupMyCurrentDirectory();
                                     } else {
-                                        for(File file : File.listRoots()) {
-                                            String fileSize = humanReadableByteCount((file.getTotalSpace() - file.getFreeSpace()), true);
-                                            FileTime lastModified = null;
-                                            try {
-                                                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
-                                            } catch (IOException ex) {}
-                                            if(lastModified !=null) {
-                                                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                                                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
-                                            } else {
-                                                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
-                                            }
-                                        }
+                                        setupMyRootDirectory();
                                     }
                                 }
                             }, 100L);
@@ -351,20 +385,7 @@ public class MainController extends Application {
                     iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
                         @Override
                         public void handle(MouseEvent event) {
-                            myFilesView.getItems().clear();
-                            for(File file : File.listRoots()) {
-                                String fileSize = humanReadableByteCount((file.getTotalSpace() - file.getFreeSpace()), true);
-                                FileTime lastModified = null;
-                                try {
-                                    lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
-                                } catch (IOException ex) {}
-                                if(lastModified !=null) {
-                                    DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                                    myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
-                                } else {
-                                    myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
-                                }
-                            }
+                            setupMyRootDirectory();
                         }
                     });
                     break;
@@ -374,28 +395,13 @@ public class MainController extends Application {
             leftActionButtons[count] = iconButton;
             count++;
         }
-        this.leftActionButtons = leftActionButtons;
         filesPane.add(iconsBox, 1, 0);
         /**
          * USER CLIENT FTP VIEW FILES:
          */
         // Setup FileSystemView for user client
-        File[] files;
-        files = File.listRoots();
         /**/
-        for(File file : files) {
-            String fileSize = humanReadableByteCount((file.getTotalSpace() - file.getFreeSpace()), true);
-            FileTime lastModified = null;
-            try {
-                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
-            } catch (IOException ex) {}
-            if(lastModified !=null) {
-                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                this.myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
-            } else {
-                this.myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
-            }
-        }
+        setupMyRootDirectory();
         // Add ContextMenu for table
         ContextMenu cm = new ContextMenu();
         MenuItem copyItem = new MenuItem("Copy");
@@ -432,24 +438,14 @@ public class MainController extends Application {
                         clickCount = 0;
                         // TODO Open sub-directories if is directory
                         PaneFile pf = (PaneFile) myFilesView.getSelectionModel().getSelectedItem();
-                        File file = new File(pf.getFilename());
-                        myCurrentDirectory = file.getAbsolutePath();
+                        if(!myCurrentDirectory.equals("ROOT1337")) {
+                            myCurrentDirectory = myCurrentDirectory + "/" + pf.getFilename();
+                        } else {
+                            myCurrentDirectory = pf.getFilename();
+                        }
+                        File file = new File(myCurrentDirectory);
                         if(file.isDirectory()) {
-                            myFilesView.getItems().clear();
-                            for (File subFile : file.listFiles()) {
-                                String fileSize = humanReadableByteCount((subFile.length()), true);
-                                // TODO Figure out File Size
-                                FileTime lastModified = null;
-                                try {
-                                    lastModified = Files.getLastModifiedTime(Paths.get(subFile.getAbsolutePath()));
-                                } catch (IOException ex) {}
-                                if(lastModified !=null) {
-                                    DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                                    myFilesView.getItems().add(new PaneFile(subFile.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
-                                } else {
-                                    myFilesView.getItems().add(new PaneFile(subFile.getAbsolutePath(), fileSize, "N/A"));
-                                }
-                            }
+                            setupMyCurrentDirectory();
                         }
                     }
                 }
@@ -462,6 +458,44 @@ public class MainController extends Application {
 
         root.getChildren().add(mainPane);
         return mainScene;
+    }
+
+    public void setupMyCurrentDirectory() {
+        myFilesView.getItems().clear();
+        for (File file : new File(myCurrentDirectory).listFiles()) {
+            String fileSize = "";
+            if (!file.isDirectory()) {
+                fileSize = humanReadableByteCount((file.length()), true);
+            }
+            FileTime lastModified = null;
+            try {
+                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
+            } catch (IOException ex) {
+            }
+            if (lastModified != null) {
+                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                myFilesView.getItems().add(new PaneFile(file.getName(), fileSize, dateFormat.format(lastModified.toMillis())));
+            } else {
+                myFilesView.getItems().add(new PaneFile(file.getName(), fileSize, "N/A"));
+            }
+        }
+    }
+    public void setupMyRootDirectory() {
+        myFilesView.getItems().clear();
+        for(File file : File.listRoots()) {
+            String fileSize = humanReadableByteCount((file.getTotalSpace() - file.getFreeSpace()), true);
+            FileTime lastModified = null;
+            try {
+                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
+            } catch (IOException ex) {}
+            if(lastModified !=null) {
+                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
+            } else {
+                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
+            }
+        }
+        myCurrentDirectory = "ROOT1337";
     }
 
     public static String humanReadableByteCount(long bytes, boolean si) {
