@@ -13,6 +13,7 @@ import javafx.scene.input.MouseEvent;
 import org.apache.commons.net.ftp.FTPFile;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileSystemView;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -97,7 +98,7 @@ public class LoginPanel extends Panel {
                             String size = humanReadableByteCount(file.getSize(), true);
                             DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
                             String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
-                            MainPage.get().getFtpFilesPanel().getTableView().getItems().add(new PaneFile(name, size, lastModified));
+                            MainPage.get().getFtpFilesPanel().getTableView().getItems().add(new PaneFile(null, name, size, lastModified)); // TODO fix
                         }
                         /** /
                          for(FTPFile file : connection.getDirectories()) {

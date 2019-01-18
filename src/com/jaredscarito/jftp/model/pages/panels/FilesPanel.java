@@ -3,18 +3,22 @@ package com.jaredscarito.jftp.model.pages.panels;
 import com.jaredscarito.jftp.controller.MainController;
 import com.jaredscarito.jftp.model.PaneFile;
 import com.jaredscarito.jftp.model.pages.MainPage;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.DragEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import org.apache.commons.io.FileUtils;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileSystemView;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -57,6 +61,16 @@ public class FilesPanel extends Panel {
         return this.name;
     }
 
+    public ImageView getIconImageView(File file) {
+        ImageIcon imgIcon = (ImageIcon) FileSystemView.getFileSystemView().getSystemIcon(file);
+        BufferedImage bufferedImage = (BufferedImage) imgIcon.getImage();
+        Image img = SwingFXUtils.toFXImage(bufferedImage, null);
+        ImageView iconImg = new ImageView(img);
+        iconImg.setFitHeight(15);
+        iconImg.setFitWidth(15);
+        return iconImg;
+    }
+
     private void setupMyCurrentDirectory() {
         tableView.getItems().clear();
         for (File file : new File(MainPage.get().getMyCurrentDirectory()).listFiles()) {
@@ -71,9 +85,9 @@ public class FilesPanel extends Panel {
             }
             if (lastModified != null) {
                 DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                tableView.getItems().add(new PaneFile(file.getName(), fileSize, dateFormat.format(lastModified.toMillis())));
+                tableView.getItems().add(new PaneFile(getIconImageView(file), file.getName(), fileSize, dateFormat.format(lastModified.toMillis())));
             } else {
-                tableView.getItems().add(new PaneFile(file.getName(), fileSize, "N/A"));
+                tableView.getItems().add(new PaneFile(getIconImageView(file), file.getName(), fileSize, "N/A"));
             }
         }
         this.currentDirectoryField.setText(MainPage.get().getMyCurrentDirectory());
@@ -88,9 +102,9 @@ public class FilesPanel extends Panel {
             } catch (IOException ex) {}
             if(lastModified !=null) {
                 DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                tableView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
+                tableView.getItems().add(new PaneFile(getIconImageView(file), file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
             } else {
-                tableView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
+                tableView.getItems().add(new PaneFile(getIconImageView(file), file.getAbsolutePath(), fileSize, "N/A"));
             }
         }
         MainPage.get().setMyCurrentDirectory("ROOT1337");
@@ -110,6 +124,20 @@ public class FilesPanel extends Panel {
         myFilesLabel.getStyleClass().add("filesLabel-" + getName());
         TableView tableView = new TableView();
         this.tableView = tableView;
+        tableView.setOnDragDetected(new EventHandler<MouseEvent>() {
+            @Override
+            public void handle(MouseEvent event) {
+                // On Table Row Drag TODO
+            }
+        });
+        tableView.setOnDragDropped(new EventHandler<DragEvent>() {
+            @Override
+            public void handle(DragEvent event) {
+                // On Table Row Drag dropped TODO
+            }
+        });
+        TableColumn iconCol = new TableColumn("");
+        iconCol.setCellValueFactory(new PropertyValueFactory<>("icon"));
         TableColumn fileNamesCol = new TableColumn("Filename");
         fileNamesCol.setCellValueFactory(new PropertyValueFactory<>("filename"));
         TableColumn fileSizesCol = new TableColumn("Size");
@@ -117,7 +145,7 @@ public class FilesPanel extends Panel {
         TableColumn fileModified = new TableColumn("Last Modified");
         fileModified.setCellValueFactory(new PropertyValueFactory<>("lastModified"));
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        tableView.getColumns().addAll(fileNamesCol, fileSizesCol, fileModified);
+        tableView.getColumns().addAll(iconCol, fileNamesCol, fileSizesCol, fileModified);
         ScrollPane scrollPane = new ScrollPane(); // Add to Pane TODO
         scrollPane.getStyleClass().add("scrollPane-" + this.getName());
         tableView.getStyleClass().add("filesTable-" + this.getName());
@@ -201,7 +229,6 @@ public class FilesPanel extends Panel {
                                                         "ERROR", JOptionPane.ERROR_MESSAGE);
                                             }
                                         } else {
-                                            System.out.println(file.exists() + " " + MainPage.get().getMyCurrentDirectory() + selected.getFilename());
                                             if (!file.delete()) {
                                                 JOptionPane.showMessageDialog(null, "FAILED: UNABLE TO DELETE FILE '" + selected.getFilename() + "'",
                                                         "ERROR", JOptionPane.ERROR_MESSAGE);
