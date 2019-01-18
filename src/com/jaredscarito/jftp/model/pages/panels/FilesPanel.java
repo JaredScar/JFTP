@@ -1,5 +1,6 @@
 package com.jaredscarito.jftp.model.pages.panels;
 
+import com.jaredscarito.jftp.controller.MainController;
 import com.jaredscarito.jftp.model.PaneFile;
 import com.jaredscarito.jftp.model.pages.MainPage;
 import javafx.event.ActionEvent;
@@ -16,6 +17,11 @@ import org.apache.commons.io.FileUtils;
 import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -47,16 +53,60 @@ public class FilesPanel extends Panel {
         init();
     }
 
-    public String getName() {
+    private String getName() {
         return this.name;
     }
 
+    private void setupMyCurrentDirectory() {
+        tableView.getItems().clear();
+        for (File file : new File(MainPage.get().getMyCurrentDirectory()).listFiles()) {
+            String fileSize = "";
+            if (!file.isDirectory()) {
+                fileSize = MainController.humanReadableByteCount((file.length()), true);
+            }
+            FileTime lastModified = null;
+            try {
+                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
+            } catch (IOException ex) {
+            }
+            if (lastModified != null) {
+                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                tableView.getItems().add(new PaneFile(file.getName(), fileSize, dateFormat.format(lastModified.toMillis())));
+            } else {
+                tableView.getItems().add(new PaneFile(file.getName(), fileSize, "N/A"));
+            }
+        }
+        this.currentDirectoryField.setText(MainPage.get().getMyCurrentDirectory());
+    }
+    private void setupMyRootDirectory() {
+        tableView.getItems().clear();
+        for(File file : File.listRoots()) {
+            String fileSize = MainController.humanReadableByteCount((file.getTotalSpace() - file.getFreeSpace()), true);
+            FileTime lastModified = null;
+            try {
+                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
+            } catch (IOException ex) {}
+            if(lastModified !=null) {
+                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                tableView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
+            } else {
+                tableView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
+            }
+        }
+        MainPage.get().setMyCurrentDirectory("ROOT1337");
+        this.currentDirectoryField.setText("/");
+    }
+
     private TableView tableView;
+    private TextField currentDirectoryField;
 
     @Override
     public void init() {
         getStyleClass().add("myFiles-pane");
         Label myFilesLabel = new Label("My Files"); // Add to Pane TODO
+        if(!getName().equals("1")) {
+            myFilesLabel.setText("FTP Files");
+        }
         myFilesLabel.getStyleClass().add("filesLabel-" + getName());
         TableView tableView = new TableView();
         this.tableView = tableView;
@@ -113,11 +163,11 @@ public class FilesPanel extends Panel {
                         public void handle(MouseEvent event) {
                             if(event.getButton() == MouseButton.PRIMARY) {
                                 if(getName().equals("1")) {
-                                    if (!myCurrentDirectory.equals("ROOT1337")) {
-                                        String[] splitSlashes = myCurrentDirectory.split("/");
-                                        if (myCurrentDirectory.split("\\\\").length > 1) {
+                                    if (!MainPage.get().getMyCurrentDirectory().equals("ROOT1337")) {
+                                        String[] splitSlashes = MainPage.get().getMyCurrentDirectory().split("/");
+                                        if (MainPage.get().getMyCurrentDirectory().split("\\\\").length > 1) {
                                             String lastSlashString = "/" + splitSlashes[splitSlashes.length - 1];
-                                            myCurrentDirectory = myCurrentDirectory.replace(lastSlashString, "");
+                                            MainPage.get().setMyCurrentDirectory(MainPage.get().getMyCurrentDirectory().replace(lastSlashString, ""));
                                             setupMyCurrentDirectory();
                                         } else {
                                             setupMyRootDirectory();
@@ -141,7 +191,7 @@ public class FilesPanel extends Panel {
                                     // TODO (possible bugs)
                                     for (Object obj : tableView.getSelectionModel().getSelectedItems()) {
                                         PaneFile selected = (PaneFile) obj;
-                                        File file = new File(myCurrentDirectory + "/" + selected.getFilename());
+                                        File file = new File(MainPage.get().getMyCurrentDirectory() + "/" + selected.getFilename());
                                         if (file.isDirectory()) {
                                             try {
                                                 FileUtils.deleteDirectory(file);
@@ -151,7 +201,7 @@ public class FilesPanel extends Panel {
                                                         "ERROR", JOptionPane.ERROR_MESSAGE);
                                             }
                                         } else {
-                                            System.out.println(file.exists() + " " + myCurrentDirectory + selected.getFilename());
+                                            System.out.println(file.exists() + " " + MainPage.get().getMyCurrentDirectory() + selected.getFilename());
                                             if (!file.delete()) {
                                                 JOptionPane.showMessageDialog(null, "FAILED: UNABLE TO DELETE FILE '" + selected.getFilename() + "'",
                                                         "ERROR", JOptionPane.ERROR_MESSAGE);
@@ -178,7 +228,7 @@ public class FilesPanel extends Panel {
                                     new java.util.Timer().schedule(new TimerTask() {
                                         @Override
                                         public void run() {
-                                            if (!myCurrentDirectory.equals("ROOT1337")) {
+                                            if (!MainPage.get().getMyCurrentDirectory().equals("ROOT1337")) {
                                                 setupMyCurrentDirectory();
                                             } else {
                                                 setupMyRootDirectory();
@@ -217,17 +267,19 @@ public class FilesPanel extends Panel {
         /**
          * URL TEXTFIELD (USER)
          */
-        TextField myURLField = new TextField("");
-        this.myURLField = myURLField;
-        myURLField.getStyleClass().add("URLField-" + getName());
-        this.myURLField.setEditable(false);
-        // TODO Gotta add myURLField
+        TextField currentDirectoryField = new TextField("");
+        this.currentDirectoryField = currentDirectoryField;
+        currentDirectoryField.getStyleClass().add("URLField-" + getName());
+        this.currentDirectoryField.setEditable(false);
+        // TODO Gotta add currentDirectoryField
         /**
          * USER CLIENT FTP VIEW FILES:
          */
         // Setup FileSystemView for user client
         /**/
-        setupMyRootDirectory();
+        if(getName().equals("1")) {
+            setupMyRootDirectory();
+        }
         // Add ContextMenu for table
         ContextMenu cm = new ContextMenu();
         cm.getStyleClass().add("context-menu");
@@ -288,12 +340,12 @@ public class FilesPanel extends Panel {
                         clickCount = 0;
                         PaneFile pf = (PaneFile) tableView.getSelectionModel().getSelectedItem();
                         if (getName().equals("1")) {
-                            if (!myCurrentDirectory.equals("ROOT1337")) {
-                                myCurrentDirectory = myCurrentDirectory + "/" + pf.getFilename();
+                            if (!MainPage.get().getMyCurrentDirectory().equals("ROOT1337")) {
+                                MainPage.get().setMyCurrentDirectory(MainPage.get().getMyCurrentDirectory() + "/" + pf.getFilename());
                             } else {
-                                myCurrentDirectory = pf.getFilename();
+                                MainPage.get().setMyCurrentDirectory(pf.getFilename());
                             }
-                            File file = new File(myCurrentDirectory);
+                            File file = new File(MainPage.get().getMyCurrentDirectory());
                             if (file.isDirectory()) {
                                 setupMyCurrentDirectory();
                             }
@@ -305,6 +357,19 @@ public class FilesPanel extends Panel {
             }
         });
         // TODO Add all of the items to this GridPane extension:
+        if(getName().equals("1")) {
+            // Buttons on right
+            add(myFilesLabel, 0, 0);
+            add(scrollPane, 0, 2);
+            add(currentDirectoryField, 0, 1);
+            add(iconsBox, 1, 2);
+        } else {
+            // Buttons on left
+            add(myFilesLabel, 1, 0);
+            add(scrollPane, 1, 2);
+            add(currentDirectoryField, 1, 1);
+            add(iconsBox, 0, 2);
+        }
     }
 
     public TableView getTableView() {
