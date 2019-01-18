@@ -1,11 +1,31 @@
 /* Padding: Top Left Bottom Right */
 .main-pane {}
-.login-pane {}
+.login-pane {
+    -fx-alignment: center;
+}
 .login-label {}
 .login-textfield {}
 .login-button {}
-.files-pane {}
-.my-files-label {}
+.myFiles-pane {}
+.myURLField {}
+.myFiles-label {}
+.myScrollPane {}
+.myFilesTable {}
+.ftpFiles-label {
+    -fx-padding: 0 0 0 200px;
+}
+.ftpFilesPane {
+    -fx-padding: 0 0 0 200px;
+}
+.ftpFilesScroll {}
+.ftpFilesView {}
+.ftpURLField {}
+
+/**
+ * Shared Class Styles:
+ */
+.context-menu {}
+.context-item {}
 .icons-box {
     -fx-padding: 200px 0 0 0;
 }

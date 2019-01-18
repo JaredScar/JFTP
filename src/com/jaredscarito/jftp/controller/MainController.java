@@ -175,6 +175,15 @@ public class MainController extends Application {
                             String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
                             ftpFilesView.getItems().add(new PaneFile(name, size, lastModified));
                         }
+                        /** /
+                        for(FTPFile file : connection.getDirectories()) {
+                            String name = file.getName();
+                            String size = humanReadableByteCount(file.getSize(), true);
+                            DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                            String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
+                            ftpFilesView.getItems().add(new PaneFile(name, size, lastModified));
+                        }
+                        /**/
                         connectButton.setText("Disconnect");
                     } else {
                         JOptionPane.showMessageDialog(null, "FAILED TO CONNECT TO FTP SERVER", "ERROR",JOptionPane.ERROR_MESSAGE);
@@ -194,6 +203,8 @@ public class MainController extends Application {
     private TextField userField;
     private TextField passField;
 
+    public TextField myURLField;
+    public TextField ftpURLField;
     public TableView myFilesView;
     public TableView ftpFilesView;
 
@@ -202,7 +213,7 @@ public class MainController extends Application {
 
     public Scene getMainScene() {
         VBox root = new VBox();
-        Scene mainScene = new Scene(root, 1400, 900);
+        Scene mainScene = new Scene(root, 1400, 1000);
         GridPane mainPane = new GridPane();
         mainPane.getStyleClass().add("main-pane");
         mainPane.setAlignment(Pos.CENTER);
@@ -265,12 +276,12 @@ public class MainController extends Application {
         this.passField = passField;
         setupConnectButton();
 
-        mainPane.add(loginPane, 0, 1);
+        mainPane.add(loginPane, 0, 1, 2, 1);
         // Files View
         GridPane filesPane = new GridPane();
-        filesPane.getStyleClass().add("files-pane");
+        filesPane.getStyleClass().add("myFiles-pane");
         Label myFilesLabel = new Label("My Files");
-        myFilesLabel.getStyleClass().add("my-files-label");
+        myFilesLabel.getStyleClass().add("myFiles-label");
         mainPane.add(myFilesLabel, 0, 2);
         TableView myFilesView = new TableView();
         this.myFilesView = myFilesView;
@@ -292,10 +303,12 @@ public class MainController extends Application {
          /**/
         myFilesView.getColumns().addAll(myFileNamesCol, myFileSizesCol, myFileModified);
         ScrollPane myFilePane = new ScrollPane();
+        myFilePane.getStyleClass().add("myScrollPane");
+        myFilesView.getStyleClass().add("myFilesTable");
         myFilePane.setContent(myFilesView);
         myFilesView.setPrefSize(400, 600);
         myFilesView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        filesPane.add(myFilePane, 0, 0);
+        filesPane.add(myFilePane, 0, 1);
 
         mainPane.add(filesPane, 0, 3);
 
@@ -416,7 +429,15 @@ public class MainController extends Application {
             leftActionButtons[count] = iconButton;
             count++;
         }
-        filesPane.add(iconsBox, 1, 0);
+        filesPane.add(iconsBox, 1, 1);
+        /**
+         * URL TEXTFIELD (USER)
+         */
+        TextField myURLField = new TextField("");
+        this.myURLField = myURLField;
+        myURLField.getStyleClass().add("myURLField");
+        this.myURLField.setEditable(false);
+        filesPane.add(myURLField, 0, 0);
         /**
          * USER CLIENT FTP VIEW FILES:
          */
@@ -425,9 +446,14 @@ public class MainController extends Application {
         setupMyRootDirectory();
         // Add ContextMenu for table
         ContextMenu cm = new ContextMenu();
+        cm.getStyleClass().add("context-menu");
         MenuItem copyItem = new MenuItem("Copy");
         MenuItem pasteItem = new MenuItem("Paste");
-        cm.getItems().addAll(copyItem, pasteItem);
+        MenuItem uploadItem = new MenuItem("Upload");
+        copyItem.getStyleClass().add("context-item");
+        pasteItem.getStyleClass().add("context-item");
+        uploadItem.getStyleClass().add("context-item");
+        cm.getItems().addAll(copyItem, pasteItem, uploadItem);
         this.myFilesView.setContextMenu(cm);
         // Add actions for ContextMenu
         copyItem.setOnAction(new EventHandler<ActionEvent>() {
@@ -440,6 +466,12 @@ public class MainController extends Application {
             @Override
             public void handle(ActionEvent event) {
                 // TODO Paste the copied directory/file in selected directory
+            }
+        });
+        uploadItem.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                // TODO Upload menu item
             }
         });
         // Set up double click action on table rows
@@ -457,7 +489,6 @@ public class MainController extends Application {
                     }, 500L);
                     if(clickCount == 2) {
                         clickCount = 0;
-                        // TODO Open sub-directories if is directory
                         PaneFile pf = (PaneFile) myFilesView.getSelectionModel().getSelectedItem();
                         if(!myCurrentDirectory.equals("ROOT1337")) {
                             myCurrentDirectory = myCurrentDirectory + "/" + pf.getFilename();
@@ -476,6 +507,165 @@ public class MainController extends Application {
         /**
          * FTP SERVER FILES VIEW:
          */
+        GridPane ftpFilesPane = new GridPane();
+        ftpFilesPane.getStyleClass().add("ftpFilesPane");
+        /**
+         * LABEL
+         */
+        Label label = new Label("FTP Files");
+        label.getStyleClass().add("ftpFiles-label");
+        mainPane.add(label, 1, 2);
+        /**
+         * URL TEXTFIELD (FTP SERVER)
+         */
+        TextField ftpURLField = new TextField("");
+        ftpURLField.getStyleClass().add("ftpURLField");
+        this.ftpURLField = ftpURLField;
+        /**
+         * TABLE
+         */
+        TableView ftpFilesView = new TableView();
+        ftpFilesView.getStyleClass().add("ftpFilesView");
+        ContextMenu ftpCm = new ContextMenu();
+        ftpCm.getStyleClass().add("context-menu");
+        MenuItem downloadItem = new MenuItem("Download");
+        downloadItem.getStyleClass().add("context-item");
+        MenuItem copyItemFTP = new MenuItem("Copy");
+        copyItemFTP.getStyleClass().add("context-item");
+        MenuItem pasteItemFTP = new MenuItem("Paste");
+        pasteItemFTP.getStyleClass().add("context-item");
+        copyItemFTP.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                // TODO FTP Copy Item
+            }
+        });
+        pasteItemFTP.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                // TODO FTP Paste Item
+            }
+        });
+        downloadItem.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                // TODO FTP Upload
+            }
+        });
+        ftpCm.getItems().addAll(copyItemFTP, pasteItemFTP, downloadItem);
+        ftpFilesView.setContextMenu(ftpCm);
+        ScrollPane ftpFilesScroll = new ScrollPane();
+        ftpFilesScroll.getStyleClass().add("ftpFilesScroll");
+        ftpFilesScroll.setContent(ftpFilesView);
+        ftpFilesView.setPrefSize(400, 600);
+        TableColumn ftpFileNamesCol = new TableColumn("Filename");
+        ftpFileNamesCol.setCellValueFactory(new PropertyValueFactory<>("filename"));
+        TableColumn ftpFileSizesCol = new TableColumn("Size");
+        ftpFileSizesCol.setCellValueFactory(new PropertyValueFactory<>("filesize"));
+        TableColumn ftpFileModified = new TableColumn("Last Modified");
+        ftpFileModified.setCellValueFactory(new PropertyValueFactory<>("lastModified"));
+        ftpFilesView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        ftpFilesView.getColumns().setAll(ftpFileNamesCol, ftpFileSizesCol, ftpFileModified);
+        this.ftpFilesView = ftpFilesView;
+        /**
+         * BUTTONS
+         */
+        ImageView[] imagesFTP = {new ImageView(new Image("com/jaredscarito/jftp/resources/new-folder-icon.png")), new ImageView(new Image("com/jaredscarito/jftp/resources/folder-up-icon.png")),
+                new ImageView(new Image("com/jaredscarito/jftp/resources/delete-folder-icon.png")), new ImageView(new Image("com/jaredscarito/jftp/resources/reload-icon.png")),
+                new ImageView(new Image("com/jaredscarito/jftp/resources/home-icon.png"))};
+        VBox iconsBoxFTP = new VBox();
+        iconsBoxFTP.getStyleClass().add("icons-box");
+        Button[] rightActionButtons = new Button[images.length];
+        count = 0;
+        // RIGHT ACTION BUTTONS
+        for(ImageView imageView : imagesFTP) {
+            imageView.setFitWidth(30);
+            imageView.setFitHeight(30);
+            iconButton = new Button();
+            iconButton.getStyleClass().add("icon-button");
+            switch (count) {
+                case 0:
+                    // newFolder or new file
+                    iconButton.setId("new-folder-2");
+                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                        @Override
+                        public void handle(MouseEvent event) {
+                            if(event.getButton() == MouseButton.PRIMARY) {
+                                // TODO create table row with TextFields which have action set up on 'enter' key to implement
+                            }
+                        }
+                    });
+                    break;
+                case 1:
+                    //folder-up
+                    iconButton.setId("folder-up-2");
+                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                        @Override
+                        public void handle(MouseEvent event) {
+                            if(event.getButton() == MouseButton.PRIMARY) {
+                                // TODO
+                            }
+                        }
+                    });
+                    break;
+                case 2:
+                    //delete-folder or file
+                    iconButton.setId("delete-folder-2");
+                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                        @Override
+                        public void handle(MouseEvent event) {
+                            if(event.getButton() == MouseButton.PRIMARY) {
+                                // TODO
+                            }
+                        }
+                    });
+                    break;
+                case 3:
+                    //reload
+                    iconButton.setId("reload-2");
+                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                        @Override
+                        public void handle(MouseEvent event) {
+                            if(event.getButton() == MouseButton.PRIMARY) {
+                                myFilesView.getItems().clear();
+                                new Timer().schedule(new TimerTask() {
+                                    @Override
+                                    public void run() {
+                                        // TODO
+                                    }
+                                }, 100L);
+                            }
+                        }
+                    });
+                    break;
+                case 4:
+                    //home
+                    iconButton.setId("home-2");
+                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
+                        @Override
+                        public void handle(MouseEvent event) {
+                            if(event.getButton() == MouseButton.PRIMARY) {
+                                // TODO
+                            }
+                        }
+                    });
+                    break;
+            }
+            iconButton.setGraphic(imageView);
+            iconsBoxFTP.getChildren().add(iconButton);
+            rightActionButtons[count] = iconButton;
+            count++;
+        }
+        ftpFilesPane.add(iconsBoxFTP, 0, 1);
+
+        ftpFilesPane.add(ftpURLField, 1, 0);
+        ftpFilesPane.add(ftpFilesScroll, 1, 1);
+        mainPane.add(ftpFilesPane, 1, 3);
+        /**
+         * FTP COMMAND LINE VIEW (This is where we announce all messages)
+         */
+        Label commandlabel = new Label("COMMAND LINE:");
+        TextField commandLineView = new TextField();
 
         root.getChildren().add(mainPane);
         return mainScene;
@@ -500,6 +690,7 @@ public class MainController extends Application {
                 myFilesView.getItems().add(new PaneFile(file.getName(), fileSize, "N/A"));
             }
         }
+        this.myURLField.setText(myCurrentDirectory);
     }
     public void setupMyRootDirectory() {
         myFilesView.getItems().clear();
@@ -517,6 +708,7 @@ public class MainController extends Application {
             }
         }
         myCurrentDirectory = "ROOT1337";
+        this.myURLField.setText("/");
     }
 
     public static String humanReadableByteCount(long bytes, boolean si) {

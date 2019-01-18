@@ -1,6 +1,7 @@
 package com.jaredscarito.jftp.model;
 
 import com.jaredscarito.jftp.controller.MainController;
+import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 
@@ -29,8 +30,10 @@ public class FTPConnect {
     public boolean connect() {
         this.client = new FTPClient();
         try {
-            this.client.connect(this.host, this.port);
-            this.client.login(this.username, this.password);
+            this.client.connect(this.host, this.port) ;
+            if(!this.client.login(this.username, this.password)) return false;
+            this.client.enterLocalPassiveMode();
+            this.client.setFileType(FTP.BINARY_FILE_TYPE);
         } catch (IOException e) {
             return false;
         }
@@ -45,9 +48,20 @@ public class FTPConnect {
         return true;
     }
 
+    public FTPClient getClient() {
+        return this.client;
+    }
+
     public FTPFile[] getFiles() {
         try {
             return this.client.listFiles();
+        } catch (IOException e) {
+            return null;
+        }
+    }
+    public FTPFile[] getDirectories() {
+        try {
+            return this.client.listDirectories();
         } catch (IOException e) {
             return null;
         }
