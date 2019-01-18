@@ -1,14 +1,11 @@
 package com.jaredscarito.jftp.controller;
 
 import com.jaredscarito.jftp.model.FTPConnect;
-import com.jaredscarito.jftp.model.FileWalker;
 import com.jaredscarito.jftp.model.PaneFile;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
-import javafx.event.Event;
 import javafx.event.EventHandler;
-import javafx.event.EventType;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -32,16 +29,13 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.net.ftp.FTPFile;
 
 import javax.swing.*;
-import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 

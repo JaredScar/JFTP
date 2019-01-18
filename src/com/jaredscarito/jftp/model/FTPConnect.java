@@ -12,10 +12,8 @@ public class FTPConnect {
     private String password;
     private String host;
     private int port;
-    private MainController main;
     private FTPClient client;
-    public FTPConnect(MainController main, String host, int port, String username, String password) {
-        this.main = main;
+    public FTPConnect(String host, int port, String username, String password) {
         this.host = host;
         this.port = port;
         this.username = username;
