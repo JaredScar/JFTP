@@ -1,44 +1,19 @@
 package com.jaredscarito.jftp.controller;
 
-import com.jaredscarito.jftp.model.FTPConnect;
-import com.jaredscarito.jftp.model.PaneFile;
 import com.jaredscarito.jftp.model.pages.MainPage;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextField;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.net.ftp.FTPFile;
-
-import javax.swing.*;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.attribute.FileTime;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class MainController extends Application {
     public Stage mainStage;
@@ -58,7 +33,6 @@ public class MainController extends Application {
         });
         primaryStage.show();
         this.mainStage = primaryStage;
-        this.main = this;
 }
 
     private MenuItem[] jftpItems;
@@ -148,110 +122,32 @@ public class MainController extends Application {
             }
         }
     }
-    public void setupConnectButton() {
-        this.connectButton.getStyleClass().add("connect-btn");
-        this.connectButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
-            @Override
-            public void handle(MouseEvent event) {
-                if(event.getButton() == MouseButton.PRIMARY) {
-                    String host = hostField.getText();
-                    int port = 0;
-                    try {
-                        port = Integer.parseInt(portField.getText());
-                    } catch (NumberFormatException ex) {}
-                    String username = userField.getText();
-                    String pass = passField.getText();
-                    connection = new FTPConnect(host, port, username, pass);
-                    if(connection.connect()) {
-                        for(FTPFile file : connection.getFiles()) {
-                            String name = file.getName();
-                            String size = humanReadableByteCount(file.getSize(), true);
-                            DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                            String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
-                            ftpFilesView.getItems().add(new PaneFile(name, size, lastModified));
-                        }
-                        /** /
-                        for(FTPFile file : connection.getDirectories()) {
-                            String name = file.getName();
-                            String size = humanReadableByteCount(file.getSize(), true);
-                            DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                            String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
-                            ftpFilesView.getItems().add(new PaneFile(name, size, lastModified));
-                        }
-                        /**/
-                        connectButton.setText("Disconnect");
-                    } else {
-                        JOptionPane.showMessageDialog(null, "FAILED TO CONNECT TO FTP SERVER", "ERROR",JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            }
-        });
-    }
-
-    public MainController main;
-
-    public FTPConnect connection;
-
-    public Button connectButton;
-    private TextField hostField;
-    private TextField portField;
-    private TextField userField;
-    private TextField passField;
-
-    public TextField myURLField;
-    public TextField ftpURLField;
-    public TableView myFilesView;
-    public TableView ftpFilesView;
-
-    public String myCurrentDirectory = "ROOT1337";
-    public String ftpCurrentDirectory = "ROOT1337";
 
     public Scene getMainScene() {
         VBox root = new VBox();
         Scene mainScene = new Scene(root, 1400, 1000);
+        // Menu Bar
+        MenuBar menuBar = new MenuBar();
+        Menu jftpMenu = new Menu("JFTP");
+        MenuItem[] jftpItems = {new MenuItem("Preferences"), new MenuItem("Exit")};
+        jftpMenu.getItems().addAll(jftpItems);
+        this.jftpItems = jftpItems;
+        Menu tasksMenu = new Menu("Tasks");
+        MenuItem[] tasksItems = {new MenuItem("Create"), new MenuItem("Edit"), new MenuItem("Delete")};
+        tasksMenu.getItems().addAll(tasksItems);
+        this.tasksItems = tasksItems;
+        Menu helpMenu = new Menu("Help");
+        MenuItem[] helpItems = {new MenuItem("About"), new MenuItem("Support")};
+        helpMenu.getItems().addAll(helpItems);
+        this.helpItems = helpItems;
+        menuBar.getMenus().addAll(jftpMenu, tasksMenu, helpMenu);
+
+        this.setMenuHandlers();
+        root.getChildren().add(menuBar);
+
         MainPage mainPage = new MainPage();
         root.getChildren().add(mainPage);
         return mainScene;
-    }
-
-    public void setupMyCurrentDirectory() {
-        myFilesView.getItems().clear();
-        for (File file : new File(myCurrentDirectory).listFiles()) {
-            String fileSize = "";
-            if (!file.isDirectory()) {
-                fileSize = humanReadableByteCount((file.length()), true);
-            }
-            FileTime lastModified = null;
-            try {
-                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
-            } catch (IOException ex) {
-            }
-            if (lastModified != null) {
-                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                myFilesView.getItems().add(new PaneFile(file.getName(), fileSize, dateFormat.format(lastModified.toMillis())));
-            } else {
-                myFilesView.getItems().add(new PaneFile(file.getName(), fileSize, "N/A"));
-            }
-        }
-        this.myURLField.setText(myCurrentDirectory);
-    }
-    public void setupMyRootDirectory() {
-        myFilesView.getItems().clear();
-        for(File file : File.listRoots()) {
-            String fileSize = humanReadableByteCount((file.getTotalSpace() - file.getFreeSpace()), true);
-            FileTime lastModified = null;
-            try {
-                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
-            } catch (IOException ex) {}
-            if(lastModified !=null) {
-                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
-            } else {
-                myFilesView.getItems().add(new PaneFile(file.getAbsolutePath(), fileSize, "N/A"));
-            }
-        }
-        myCurrentDirectory = "ROOT1337";
-        this.myURLField.setText("/");
     }
 
     public static String humanReadableByteCount(long bytes, boolean si) {

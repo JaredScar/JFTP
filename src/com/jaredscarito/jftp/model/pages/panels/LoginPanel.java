@@ -39,6 +39,10 @@ public class LoginPanel extends Panel {
         init();
     }
 
+    public FTPConnect getConnection() {
+        return this.connection;
+    }
+
     @Override
     public void init() { 
         setHgap(30);
