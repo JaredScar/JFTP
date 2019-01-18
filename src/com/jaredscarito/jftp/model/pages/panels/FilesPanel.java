@@ -57,7 +57,7 @@ public class FilesPanel extends Panel {
     public void init() {
         getStyleClass().add("myFiles-pane");
         Label myFilesLabel = new Label("My Files"); // Add to Pane TODO
-        myFilesLabel.getStyleClass().add("myFiles-label");
+        myFilesLabel.getStyleClass().add("filesLabel-" + getName());
         TableView tableView = new TableView();
         this.tableView = tableView;
         TableColumn fileNamesCol = new TableColumn("Filename");
@@ -69,8 +69,8 @@ public class FilesPanel extends Panel {
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         tableView.getColumns().addAll(fileNamesCol, fileSizesCol, fileModified);
         ScrollPane scrollPane = new ScrollPane(); // Add to Pane TODO
-        scrollPane.getStyleClass().add("ScrollPane-" + this.getName());
-        tableView.getStyleClass().add("FilesTable-" + this.getName());
+        scrollPane.getStyleClass().add("scrollPane-" + this.getName());
+        tableView.getStyleClass().add("filesTable-" + this.getName());
         scrollPane.setContent(tableView);
         tableView.setPrefSize(400, 600);
         tableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -96,7 +96,11 @@ public class FilesPanel extends Panel {
                         @Override
                         public void handle(MouseEvent event) {
                             if(event.getButton() == MouseButton.PRIMARY) {
-                                // TODO create table row with TextFields which have action set up on 'enter' key to implement
+                                if(getName().equals("1")) {
+                                    // TODO create table row with TextFields which have action set up on 'enter' key to implement
+                                } else {
+                                    // TODO FTP files
+                                }
                             }
                         }
                     });
@@ -108,15 +112,19 @@ public class FilesPanel extends Panel {
                         @Override
                         public void handle(MouseEvent event) {
                             if(event.getButton() == MouseButton.PRIMARY) {
-                                if(!myCurrentDirectory.equals("ROOT1337")) {
-                                    String[] splitSlashes = myCurrentDirectory.split("/");
-                                    if(myCurrentDirectory.split("\\\\").length > 1) {
-                                        String lastSlashString = "/" + splitSlashes[splitSlashes.length - 1];
-                                        myCurrentDirectory = myCurrentDirectory.replace(lastSlashString, "");
-                                        setupMyCurrentDirectory();
-                                    } else {
-                                        setupMyRootDirectory();
+                                if(getName().equals("1")) {
+                                    if (!myCurrentDirectory.equals("ROOT1337")) {
+                                        String[] splitSlashes = myCurrentDirectory.split("/");
+                                        if (myCurrentDirectory.split("\\\\").length > 1) {
+                                            String lastSlashString = "/" + splitSlashes[splitSlashes.length - 1];
+                                            myCurrentDirectory = myCurrentDirectory.replace(lastSlashString, "");
+                                            setupMyCurrentDirectory();
+                                        } else {
+                                            setupMyRootDirectory();
+                                        }
                                     }
+                                } else {
+                                    // TODO FTP Files
                                 }
                             }
                         }
@@ -129,26 +137,30 @@ public class FilesPanel extends Panel {
                         @Override
                         public void handle(MouseEvent event) {
                             if(event.getButton() == MouseButton.PRIMARY) {
-                                // TODO (possible bugs)
-                                for(Object obj : tableView.getSelectionModel().getSelectedItems()) {
-                                    PaneFile selected = (PaneFile) obj;
-                                    File file = new File(myCurrentDirectory + "/" + selected.getFilename());
-                                    if(file.isDirectory()) {
-                                        try {
-                                            FileUtils.deleteDirectory(file);
-                                        } catch (IOException e) {
-                                            // Failed deleting
-                                            JOptionPane.showMessageDialog(null, "FAILED: UNABLE TO DELETE DIRECTORY '" + selected.getFilename() + "'",
-                                                    "ERROR", JOptionPane.ERROR_MESSAGE);
+                                if(getName().equals("1")) {
+                                    // TODO (possible bugs)
+                                    for (Object obj : tableView.getSelectionModel().getSelectedItems()) {
+                                        PaneFile selected = (PaneFile) obj;
+                                        File file = new File(myCurrentDirectory + "/" + selected.getFilename());
+                                        if (file.isDirectory()) {
+                                            try {
+                                                FileUtils.deleteDirectory(file);
+                                            } catch (IOException e) {
+                                                // Failed deleting
+                                                JOptionPane.showMessageDialog(null, "FAILED: UNABLE TO DELETE DIRECTORY '" + selected.getFilename() + "'",
+                                                        "ERROR", JOptionPane.ERROR_MESSAGE);
+                                            }
+                                        } else {
+                                            System.out.println(file.exists() + " " + myCurrentDirectory + selected.getFilename());
+                                            if (!file.delete()) {
+                                                JOptionPane.showMessageDialog(null, "FAILED: UNABLE TO DELETE FILE '" + selected.getFilename() + "'",
+                                                        "ERROR", JOptionPane.ERROR_MESSAGE);
+                                            }
                                         }
-                                    } else {
-                                        System.out.println(file.exists() + " " + myCurrentDirectory + selected.getFilename());
-                                        if(!file.delete()) {
-                                            JOptionPane.showMessageDialog(null, "FAILED: UNABLE TO DELETE FILE '" + selected.getFilename() + "'",
-                                                    "ERROR", JOptionPane.ERROR_MESSAGE);
-                                        }
+                                        setupMyCurrentDirectory();
                                     }
-                                    setupMyCurrentDirectory();
+                                } else {
+                                    // TODO FTP Files
                                 }
                             }
                         }
@@ -160,17 +172,23 @@ public class FilesPanel extends Panel {
                     iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
                         @Override
                         public void handle(MouseEvent event) {
-                            tableView.getItems().clear();
-                            new java.util.Timer().schedule(new TimerTask() {
-                                @Override
-                                public void run() {
-                                    if(!myCurrentDirectory.equals("ROOT1337")) {
-                                        setupMyCurrentDirectory();
-                                    } else {
-                                        setupMyRootDirectory();
-                                    }
+                            if(event.getButton() == MouseButton.PRIMARY) {
+                                if(getName().equals("1")) {
+                                    tableView.getItems().clear();
+                                    new java.util.Timer().schedule(new TimerTask() {
+                                        @Override
+                                        public void run() {
+                                            if (!myCurrentDirectory.equals("ROOT1337")) {
+                                                setupMyCurrentDirectory();
+                                            } else {
+                                                setupMyRootDirectory();
+                                            }
+                                        }
+                                    }, 100L);
+                                } else {
+                                    // TODO FTP Files
                                 }
-                            }, 100L);
+                            }
                         }
                     });
                     break;
@@ -180,25 +198,30 @@ public class FilesPanel extends Panel {
                     iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
                         @Override
                         public void handle(MouseEvent event) {
-                            setupMyRootDirectory();
+                            if(event.getButton() == MouseButton.PRIMARY) {
+                                if(getName().equals("1")) {
+                                    setupMyRootDirectory();
+                                } else {
+                                    // TODO FTP Files
+                                }
+                            }
                         }
                     });
                     break;
             }
             iconButton.setGraphic(imageView);
             iconsBox.getChildren().add(iconButton);
-            leftActionButtons[count] = iconButton;
             count++;
         }
-        add(iconsBox, 1, 1);
+        // TODO Gotta add iconsBox
         /**
          * URL TEXTFIELD (USER)
          */
         TextField myURLField = new TextField("");
         this.myURLField = myURLField;
-        myURLField.getStyleClass().add("myURLField");
+        myURLField.getStyleClass().add("URLField-" + getName());
         this.myURLField.setEditable(false);
-        add(myURLField, 0, 0);
+        // TODO Gotta add myURLField
         /**
          * USER CLIENT FTP VIEW FILES:
          */
@@ -211,10 +234,17 @@ public class FilesPanel extends Panel {
         MenuItem copyItem = new MenuItem("Copy");
         MenuItem pasteItem = new MenuItem("Paste");
         MenuItem uploadItem = new MenuItem("Upload");
+        MenuItem downloadItem = new MenuItem("Download");
         copyItem.getStyleClass().add("context-item");
         pasteItem.getStyleClass().add("context-item");
         uploadItem.getStyleClass().add("context-item");
-        cm.getItems().addAll(copyItem, pasteItem, uploadItem);
+        downloadItem.getStyleClass().add("context-item");
+        cm.getItems().addAll(copyItem, pasteItem);
+        if(getName().equals("1")) {
+            cm.getItems().add(uploadItem);
+        } else {
+            cm.getItems().add(downloadItem);
+        }
         this.tableView.setContextMenu(cm);
         // Add actions for ContextMenu
         copyItem.setOnAction(new EventHandler<ActionEvent>() {
@@ -235,6 +265,12 @@ public class FilesPanel extends Panel {
                 // TODO Upload menu item
             }
         });
+        downloadItem.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                // TODO Download menu item
+            }
+        });
         // Set up double click action on table rows
         this.tableView.setOnMouseClicked(new EventHandler<MouseEvent>() {
             private int clickCount = 0;
@@ -251,19 +287,24 @@ public class FilesPanel extends Panel {
                     if(clickCount == 2) {
                         clickCount = 0;
                         PaneFile pf = (PaneFile) tableView.getSelectionModel().getSelectedItem();
-                        if(!myCurrentDirectory.equals("ROOT1337")) {
-                            myCurrentDirectory = myCurrentDirectory + "/" + pf.getFilename();
+                        if (getName().equals("1")) {
+                            if (!myCurrentDirectory.equals("ROOT1337")) {
+                                myCurrentDirectory = myCurrentDirectory + "/" + pf.getFilename();
+                            } else {
+                                myCurrentDirectory = pf.getFilename();
+                            }
+                            File file = new File(myCurrentDirectory);
+                            if (file.isDirectory()) {
+                                setupMyCurrentDirectory();
+                            }
                         } else {
-                            myCurrentDirectory = pf.getFilename();
-                        }
-                        File file = new File(myCurrentDirectory);
-                        if(file.isDirectory()) {
-                            setupMyCurrentDirectory();
+                            // TODO FTP Files
                         }
                     }
                 }
             }
         });
+        // TODO Add all of the items to this GridPane extension:
     }
 
     public TableView getTableView() {
