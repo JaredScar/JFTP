@@ -138,6 +138,7 @@ public class FilesPanel extends Panel {
         });
         TableColumn iconCol = new TableColumn("");
         iconCol.setCellValueFactory(new PropertyValueFactory<>("icon"));
+        iconCol.setMaxWidth(500);
         TableColumn fileNamesCol = new TableColumn("Filename");
         fileNamesCol.setCellValueFactory(new PropertyValueFactory<>("filename"));
         TableColumn fileSizesCol = new TableColumn("Size");
