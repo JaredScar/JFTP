@@ -1,0 +1,7 @@
+//      JFTP
+// created by Jared Scarito
+//
+// Host ; Port ; Username
+// Example:
+// ftp.domain.com ; 21 ; jared25
+// // denotes comment

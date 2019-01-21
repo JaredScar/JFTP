@@ -5,7 +5,7 @@ import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 
-import java.io.IOException;
+import java.io.*;
 
 public class FTPConnect {
     private String username;
@@ -39,6 +39,7 @@ public class FTPConnect {
     }
     public boolean disconnect() {
         try {
+            this.client.logout();
             this.client.disconnect();
         } catch (IOException e) {
             return false;
@@ -64,6 +65,28 @@ public class FTPConnect {
             return null;
         }
     }
+
+    public boolean uploadFile(String localFilePath, String fileName, String ftpDestDir) {
+        try {
+            InputStream inp = new FileInputStream(new File(localFilePath));
+            if(this.client.storeFile(ftpDestDir + fileName, inp))
+                return true;
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
+    }
+    public boolean downloadFile(String ftpFilePath, String localDestDir) {
+        try {
+            FileOutputStream fos = new FileOutputStream(localDestDir);
+            if(this.client.retrieveFile(ftpFilePath, fos))
+                return true;
+        } catch (IOException ex) {
+            return false;
+        }
+        return false;
+    }
+
     public boolean fileExists(String fileName) {
         try {
             for (FTPFile file : this.client.listFiles()) {
@@ -88,10 +111,10 @@ public class FTPConnect {
         }
         return false;
     }
-    public boolean createFile(String fileName, CopyFile.FtpFileType ftpFileType) {
+    public boolean createFTPFile(String fileName) {
         return false; // TODO
     }
-    public boolean renameFile(String oldName, String newName, CopyFile.FtpFileType ftpFileType) {
+    public boolean renameFTPFile(String oldName, String newName) {
         return false; // TODO
     }
 }

@@ -37,6 +37,7 @@ public class MainController extends Application {
 
     private MenuItem[] jftpItems;
     private MenuItem[] tasksItems;
+    private MenuItem[] presetItems;
     private MenuItem[] helpItems;
 
     public void setMenuHandlers() {
@@ -97,6 +98,26 @@ public class MainController extends Application {
                 }
             }
         }
+        // Presets Menu TODO
+        if(presetItems !=null) {
+            ImageView icon;
+            for(MenuItem item : presetItems) {
+                switch (item.getText()) {
+                    case "Save":
+                        icon = new ImageView(new Image("com/jaredscarito/jftp/resources/save-icon.png"));
+                        icon.setFitHeight(20);
+                        icon.setFitWidth(20);
+                        item.setGraphic(icon);
+                        break;
+                    default:
+                        // Give load icon
+                        icon = new ImageView(new Image("com/jaredscarito/jftp/resources/load-icon.png"));
+                        icon.setFitWidth(20);
+                        icon.setFitHeight(20);
+                        item.setGraphic(icon);
+                }
+            }
+        }
         // Help Menu
         if(helpItems !=null) {
             ImageView icon;
@@ -136,11 +157,16 @@ public class MainController extends Application {
         MenuItem[] tasksItems = {new MenuItem("Create"), new MenuItem("Edit"), new MenuItem("Delete")};
         tasksMenu.getItems().addAll(tasksItems);
         this.tasksItems = tasksItems;
+        Menu presetsMenu = new Menu("Presets");
+        MenuItem[] presetItems = {new MenuItem("Save")};
+        presetsMenu.getItems().addAll(presetItems);
+        this.presetItems = presetItems;
+        // TODO Get saved presets from data file and add them to presetsMenu with (delete button as well)
         Menu helpMenu = new Menu("Help");
         MenuItem[] helpItems = {new MenuItem("About"), new MenuItem("Support")};
         helpMenu.getItems().addAll(helpItems);
         this.helpItems = helpItems;
-        menuBar.getMenus().addAll(jftpMenu, tasksMenu, helpMenu);
+        menuBar.getMenus().addAll(jftpMenu, tasksMenu, presetsMenu, helpMenu);
 
         this.setMenuHandlers();
         root.getChildren().add(menuBar);

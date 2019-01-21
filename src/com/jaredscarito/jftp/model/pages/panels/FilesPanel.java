@@ -1,6 +1,7 @@
 package com.jaredscarito.jftp.model.pages.panels;
 
 import com.jaredscarito.jftp.controller.MainController;
+import com.jaredscarito.jftp.model.FTPConnect;
 import com.jaredscarito.jftp.model.PaneFile;
 import com.jaredscarito.jftp.model.pages.MainPage;
 import javafx.embed.swing.SwingFXUtils;
@@ -15,6 +16,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.net.ftp.FTPFile;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
@@ -31,33 +33,16 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class FilesPanel extends Panel {
-    private boolean buttonsLeft;
-    private String name;
     public FilesPanel() {}
     public FilesPanel(String name, List<String> styleClasses) {
-        this.name = name;
-        getStyleClass().addAll(styleClasses);
-        init();
+        super(name, styleClasses);
     }
     public FilesPanel(String name, String styleClass) {
-        this.name = name;
-        getStyleClass().add(styleClass);
-        init();
-    }
-    public FilesPanel(String name, String styleClass, boolean buttonsLeft) {
-        this.name = name;
-        getStyleClass().add(styleClass);
-        this.buttonsLeft = buttonsLeft;
-        init();
-    }
-    public FilesPanel(String name, List<String> styleClasses, boolean buttonsLeft) {
-        this.name = name;
-        getStyleClass().addAll(styleClasses);
-        this.buttonsLeft = buttonsLeft;
-        init();
+        super(name, styleClass);
     }
 
-    private String getName() {
+    @Override
+    public String getName() {
         return this.name;
     }
 
@@ -110,6 +95,44 @@ public class FilesPanel extends Panel {
         MainPage.get().setMyCurrentDirectory("ROOT1337");
         this.currentDirectoryField.setText("/");
     }
+    private void setupFTPRootDirectory() {
+        tableView.getItems().clear();
+        FTPConnect connection = MainPage.get().getLoginPanel().getConnection();
+        for (FTPFile file : connection.getFiles()) {
+            ftpFileSetup(file);
+        }
+        MainPage.get().setFtpCurrentDirectory("ROOT1337");
+        this.currentDirectoryField.setText("");
+    }
+    private void ftpFileSetup(FTPFile file) {
+        String name = file.getName();
+        String size = MainController.humanReadableByteCount(file.getSize(), true);
+        DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+        String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
+        ImageView icon;
+        if(file.isDirectory()) {
+            icon = new ImageView(new Image("com/jaredscarito/jftp/resources/ftp-folder-icon.png"));
+            icon.setFitWidth(15);
+            icon.setFitHeight(15);
+        } else {
+            // It's a file
+            icon = new ImageView(new Image("com/jaredscarito/jftp/resources/ftp-file-icon.png"));
+            icon.setFitWidth(15);
+            icon.setFitHeight(15);
+        }
+        MainPage.get().getFtpFilesPanel().getTableView().getItems().add(new PaneFile(icon, name, size, lastModified));
+    }
+    private void setupFTPCurrentDirectory() {
+        tableView.getItems().clear();
+        FTPConnect connection = MainPage.get().getLoginPanel().getConnection();
+        try {
+            FTPFile[] files = connection.getClient().listFiles(MainPage.get().getFtpCurrentDirectory());
+            for(FTPFile file : files) {
+                ftpFileSetup(file);
+            }
+            this.currentDirectoryField.setText(MainPage.get().getFtpCurrentDirectory());
+        } catch (IOException e) {}
+    }
 
     private TableView tableView;
     private TextField currentDirectoryField;
@@ -147,7 +170,7 @@ public class FilesPanel extends Panel {
         fileModified.setCellValueFactory(new PropertyValueFactory<>("lastModified"));
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         tableView.getColumns().addAll(iconCol, fileNamesCol, fileSizesCol, fileModified);
-        ScrollPane scrollPane = new ScrollPane(); // Add to Pane TODO
+        ScrollPane scrollPane = new ScrollPane();
         scrollPane.getStyleClass().add("scrollPane-" + this.getName());
         tableView.getStyleClass().add("filesTable-" + this.getName());
         scrollPane.setContent(tableView);
@@ -203,7 +226,16 @@ public class FilesPanel extends Panel {
                                         }
                                     }
                                 } else {
-                                    // TODO FTP Files
+                                    if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
+                                        if(MainPage.get().getFtpCurrentDirectory().contains("/")) {
+                                            String[] split = MainPage.get().getFtpCurrentDirectory().split("/");
+                                            String lastSlashString = "/" + split[split.length - 1];
+                                            MainPage.get().setFtpCurrentDirectory(MainPage.get().getFtpCurrentDirectory().replace(lastSlashString, ""));
+                                            setupFTPCurrentDirectory();
+                                        } else {
+                                            setupFTPRootDirectory();
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -217,7 +249,6 @@ public class FilesPanel extends Panel {
                         public void handle(MouseEvent event) {
                             if(event.getButton() == MouseButton.PRIMARY) {
                                 if(getName().equals("1")) {
-                                    // TODO (possible bugs)
                                     for (Object obj : tableView.getSelectionModel().getSelectedItems()) {
                                         PaneFile selected = (PaneFile) obj;
                                         File file = new File(MainPage.get().getMyCurrentDirectory() + "/" + selected.getFilename());
@@ -238,7 +269,28 @@ public class FilesPanel extends Panel {
                                         setupMyCurrentDirectory();
                                     }
                                 } else {
-                                    // TODO FTP Files
+                                    FTPConnect connection = MainPage.get().getLoginPanel().getConnection();
+                                    for(Object obj : tableView.getSelectionModel().getSelectedItems()) {
+                                        PaneFile selected = (PaneFile) obj;
+                                        if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
+                                            try {
+                                                connection.getClient().deleteFile(MainPage.get().getFtpCurrentDirectory() + "/" + selected.getFilename());
+                                            } catch (IOException e) {
+                                                JOptionPane.showMessageDialog(null, "FAILED UNABLE TO DELETE '" + selected.getFilename() + "'",
+                                                        "ERROR", JOptionPane.ERROR_MESSAGE);
+                                            }
+                                            setupFTPCurrentDirectory();
+                                        } else {
+                                            // Is just file name
+                                            try {
+                                                connection.getClient().deleteFile(selected.getFilename());
+                                            } catch (IOException e) {
+                                                JOptionPane.showMessageDialog(null, "FAILED UNABLE TO DELETE '" + selected.getFilename() + "'",
+                                                        "ERROR", JOptionPane.ERROR_MESSAGE);
+                                            }
+                                            setupFTPRootDirectory();
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -253,7 +305,7 @@ public class FilesPanel extends Panel {
                             if(event.getButton() == MouseButton.PRIMARY) {
                                 if(getName().equals("1")) {
                                     tableView.getItems().clear();
-                                    new java.util.Timer().schedule(new TimerTask() {
+                                    new Timer().schedule(new TimerTask() {
                                         @Override
                                         public void run() {
                                             if (!MainPage.get().getMyCurrentDirectory().equals("ROOT1337")) {
@@ -264,7 +316,16 @@ public class FilesPanel extends Panel {
                                         }
                                     }, 100L);
                                 } else {
-                                    // TODO FTP Files
+                                    new Timer().schedule(new TimerTask() {
+                                        @Override
+                                        public void run() {
+                                            if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
+                                                setupFTPCurrentDirectory();
+                                            } else {
+                                                setupFTPRootDirectory();
+                                            }
+                                        }
+                                    }, 100L);
                                 }
                             }
                         }
@@ -280,7 +341,7 @@ public class FilesPanel extends Panel {
                                 if(getName().equals("1")) {
                                     setupMyRootDirectory();
                                 } else {
-                                    // TODO FTP Files
+                                    setupFTPRootDirectory();
                                 }
                             }
                         }
@@ -368,17 +429,37 @@ public class FilesPanel extends Panel {
                         clickCount = 0;
                         PaneFile pf = (PaneFile) tableView.getSelectionModel().getSelectedItem();
                         if (getName().equals("1")) {
+                            String temp = "";
                             if (!MainPage.get().getMyCurrentDirectory().equals("ROOT1337")) {
-                                MainPage.get().setMyCurrentDirectory(MainPage.get().getMyCurrentDirectory() + "/" + pf.getFilename());
+                                temp = MainPage.get().getMyCurrentDirectory() + "/" + pf.getFilename();
                             } else {
-                                MainPage.get().setMyCurrentDirectory(pf.getFilename());
+                               temp = pf.getFilename();
                             }
-                            File file = new File(MainPage.get().getMyCurrentDirectory());
+                            File file = new File(temp);
                             if (file.isDirectory()) {
+                                MainPage.get().setMyCurrentDirectory(temp);
                                 setupMyCurrentDirectory();
                             }
                         } else {
-                            // TODO FTP Files
+                            try {
+                                FTPFile[] files;
+                                if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
+                                    files = MainPage.get().getLoginPanel().getConnection().getClient().listFiles(MainPage.get().getFtpCurrentDirectory() + "/" + pf.getFilename());
+                                } else {
+                                    files = MainPage.get().getLoginPanel().getConnection().getClient().listFiles(pf.getFilename());
+                                }
+                                if(files.length <= 1) {
+                                    // Is a file
+                                } else {
+                                    // Is a directory
+                                    if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
+                                        MainPage.get().setFtpCurrentDirectory(MainPage.get().getFtpCurrentDirectory() + "/" + pf.getFilename());
+                                    } else {
+                                        MainPage.get().setFtpCurrentDirectory(pf.getFilename());
+                                    }
+                                    setupFTPCurrentDirectory();
+                                }
+                            } catch (IOException ex) {}
                         }
                     }
                 }

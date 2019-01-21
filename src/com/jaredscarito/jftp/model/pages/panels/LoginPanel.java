@@ -8,12 +8,13 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import org.apache.commons.net.ftp.FTPFile;
 
 import javax.swing.*;
-import javax.swing.filechooser.FileSystemView;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -30,18 +31,19 @@ public class LoginPanel extends Panel {
         init();
     }
     public LoginPanel(String name, List<String> styleClasses) {
-        this.name = name;
-        this.getStyleClass().addAll(styleClasses);
-        init();
+        super(name, styleClasses);
     }
     public LoginPanel(String name, String styleClass) {
-        this.name = name;
-        this.getStyleClass().add(styleClass);
-        init();
+        super(name, styleClass);
     }
 
     public FTPConnect getConnection() {
         return this.connection;
+    }
+
+    @Override
+    public String getName() {
+        return this.name;
     }
 
     @Override
@@ -84,34 +86,54 @@ public class LoginPanel extends Panel {
             @Override
             public void handle(MouseEvent event) {
                 if(event.getButton() == MouseButton.PRIMARY) {
-                    String host = hostField.getText();
-                    int port = 0;
-                    try {
-                        port = Integer.parseInt(portField.getText());
-                    } catch (NumberFormatException ex) {}
-                    String username = userField.getText();
-                    String pass = passField.getText();
-                    connection = new FTPConnect(host, port, username, pass);
-                    if(connection.connect()) {
-                        for(FTPFile file : connection.getFiles()) {
-                            String name = file.getName();
-                            String size = humanReadableByteCount(file.getSize(), true);
-                            DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                            String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
-                            MainPage.get().getFtpFilesPanel().getTableView().getItems().add(new PaneFile(null, name, size, lastModified)); // TODO fix
+                    if (connection == null) {
+                        String host = hostField.getText();
+                        int port = 0;
+                        try {
+                            port = Integer.parseInt(portField.getText());
+                        } catch (NumberFormatException ex) {}
+                        String username = userField.getText();
+                        String pass = passField.getText();
+                        connection = new FTPConnect(host, port, username, pass);
+                        if (connection.connect()) {
+                            for (FTPFile file : connection.getFiles()) {
+                                String name = file.getName();
+                                String size = humanReadableByteCount(file.getSize(), true);
+                                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                                String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
+                                ImageView icon;
+                                if(file.isDirectory()) {
+                                    icon = new ImageView(new Image("com/jaredscarito/jftp/resources/ftp-folder-icon.png"));
+                                    icon.setFitWidth(15);
+                                    icon.setFitHeight(15);
+                                } else {
+                                    // It's a file
+                                    icon = new ImageView(new Image("com/jaredscarito/jftp/resources/ftp-file-icon.png"));
+                                    icon.setFitWidth(15);
+                                    icon.setFitHeight(15);
+                                }
+                                MainPage.get().getFtpFilesPanel().getTableView().getItems().add(new PaneFile(icon, name, size, lastModified));
+                            }
+                            /** /
+                             for(FTPFile file : connection.getDirectories()) {
+                             String name = file.getName();
+                             String size = humanReadableByteCount(file.getSize(), true);
+                             DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
+                             String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
+                             ftpFilesView.getItems().add(new PaneFile(name, size, lastModified));
+                             }
+                             /**/
+                            connectButton.setText("Disconnect");
+                        } else {
+                            JOptionPane.showMessageDialog(null, "FAILED TO CONNECT TO FTP SERVER", "ERROR", JOptionPane.ERROR_MESSAGE);
+                            connection = null;
                         }
-                        /** /
-                         for(FTPFile file : connection.getDirectories()) {
-                         String name = file.getName();
-                         String size = humanReadableByteCount(file.getSize(), true);
-                         DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                         String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
-                         ftpFilesView.getItems().add(new PaneFile(name, size, lastModified));
-                         }
-                         /**/
-                        connectButton.setText("Disconnect");
                     } else {
-                        JOptionPane.showMessageDialog(null, "FAILED TO CONNECT TO FTP SERVER", "ERROR",JOptionPane.ERROR_MESSAGE);
+                        // It is the disconnect button
+                        MainPage.get().getFtpFilesPanel().getTableView().getItems().clear();
+                        connection.disconnect();
+                        connection = null;
+                        connectButton.setText("Connect");
                     }
                 }
             }

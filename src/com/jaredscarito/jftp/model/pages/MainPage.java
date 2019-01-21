@@ -55,7 +55,7 @@ public class MainPage extends GridPane {
     /**
      * Getters
      */
-    public Panel getLoginPanel() {
+    public LoginPanel getLoginPanel() {
         return this.loginPanel;
     }
     public FilesPanel getMyFilesPanel() {
