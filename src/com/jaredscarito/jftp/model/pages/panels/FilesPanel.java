@@ -12,6 +12,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.DragEvent;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
@@ -200,6 +201,16 @@ public class FilesPanel extends Panel {
                             if(event.getButton() == MouseButton.PRIMARY) {
                                 if(getName().equals("1")) {
                                     // TODO create table row with TextFields which have action set up on 'enter' key to implement
+                                    TextField fileCreateName = new TextField("");
+                                    fileCreateName.setOnKeyPressed(new EventHandler<KeyEvent>() {
+                                        @Override
+                                        public void handle(KeyEvent event) {
+                                            if(event.getCode().getName().equalsIgnoreCase("Enter")) {
+                                                //TODO
+                                            }
+                                        }
+                                    });
+                                    // TODO Add it to the tableView and change their focus to it
                                 } else {
                                     // TODO FTP files
                                 }
