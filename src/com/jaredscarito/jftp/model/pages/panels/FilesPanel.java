@@ -219,17 +219,34 @@ public class FilesPanel extends Panel {
                         public void handle(MouseEvent event) {
                             if(event.getButton() == MouseButton.PRIMARY) {
                                 if(getName().equals("1")) {
-                                    // TODO create table row with TextFields which have action set up on 'enter' key to implement
+                                    // create table row with TextFields which have action set up on 'enter' key to implement
                                     TextField fileCreateName = new TextField("");
                                     fileCreateName.setOnKeyPressed(new EventHandler<KeyEvent>() {
                                         @Override
                                         public void handle(KeyEvent event) {
                                             if(event.getCode().getName().equalsIgnoreCase("Enter")) {
-                                                //TODO
+                                                //TODO Needs fixing (Table cell property value factory) <---
+                                                String fileName = fileCreateName.getText();
+                                                File file = new File(MainPage.get().getMyCurrentDirectory()
+                                                        + "/" + fileName);
+                                                if(!file.exists()) {
+                                                    // Doesn't exist, try creating
+                                                    try {
+                                                        file.createNewFile();
+                                                    } catch (IOException e) {
+                                                        JOptionPane.showMessageDialog(null,
+                                                                "FAILED: " + e.getCause().getMessage(),
+                                                                "ERROR", JOptionPane.ERROR_MESSAGE);
+                                                    }
+                                                    setupMyCurrentDirectory();
+                                                } else {
+                                                    // TODO ERROR, it exists already
+                                                }
                                             }
                                         }
                                     });
-                                    // TODO Add it to the tableView and change their focus to it
+                                    System.out.println("It runs");
+                                    tableView.getItems().add(new PaneFile(null, fileCreateName, "", ""));
                                 } else {
                                     // TODO FTP files
                                 }
