@@ -48,13 +48,32 @@ public class FilesPanel extends Panel {
     }
 
     public ImageView getIconImageView(File file) {
-        ImageIcon imgIcon = (ImageIcon) FileSystemView.getFileSystemView().getSystemIcon(file);
-        BufferedImage bufferedImage = (BufferedImage) imgIcon.getImage();
-        Image img = SwingFXUtils.toFXImage(bufferedImage, null);
-        ImageView iconImg = new ImageView(img);
-        iconImg.setFitHeight(15);
-        iconImg.setFitWidth(15);
-        return iconImg;
+        try {
+            ImageIcon imgIcon = (ImageIcon) FileSystemView.getFileSystemView().getSystemIcon(file);
+            BufferedImage bufferedImage = (BufferedImage) imgIcon.getImage();
+            Image img = SwingFXUtils.toFXImage(bufferedImage, null);
+            ImageView iconImg = new ImageView(img);
+            iconImg.setFitHeight(15);
+            iconImg.setFitWidth(15);
+            return iconImg;
+        } catch (Exception ex) {
+            // Use default images instead
+            // Make it a folder or file dependent on condition
+            if(file.isDirectory()) {
+                Image img = new Image("com/jaredscarito/jftp/resources/ftp-folder-icon.png");
+                ImageView icon = new ImageView(img);
+                icon.setFitWidth(15);
+                icon.setFitHeight(15);
+                return icon;
+            } else {
+                // Is File
+                Image img = new Image("com/jaredscarito/jftp/resources/ftp-file-icon.png");
+                ImageView icon = new ImageView(img);
+                icon.setFitWidth(15);
+                icon.setFitHeight(15);
+                return icon;
+            }
+        }
     }
 
     private void setupMyCurrentDirectory() {
