@@ -111,9 +111,6 @@ public class FTPConnect {
         }
         return false;
     }
-    public boolean createFTPFile(String fileName) {
-        return false; // TODO
-    }
     public boolean renameFTPFile(String oldName, String newName) {
         return false; // TODO
     }

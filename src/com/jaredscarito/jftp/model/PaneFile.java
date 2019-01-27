@@ -23,7 +23,7 @@ public class PaneFile {
     public ImageView getIcon() {
         return this.icon;
     }
-    public Object getObject() {
+    public Object getObj() {
         if(this.createFileField !=null)
             return this.createFileField;
         return this.filename;

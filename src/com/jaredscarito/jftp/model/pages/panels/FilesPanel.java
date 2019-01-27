@@ -11,10 +11,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.DragEvent;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.input.*;
 import javafx.scene.layout.VBox;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.net.ftp.FTPFile;
@@ -29,6 +26,7 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -157,33 +155,28 @@ public class FilesPanel extends Panel {
     private TableView tableView;
     private TextField currentDirectoryField;
 
+    private enum FileType {
+        CLIENT,
+        FTP;
+    }
+    private FileType currentClipFilesType;
+    private List<String> clipboardFilePaths = new ArrayList<>();
+
     @Override
     public void init() {
         getStyleClass().add("myFiles-pane");
-        Label myFilesLabel = new Label("My Files"); // Add to Pane TODO
+        Label myFilesLabel = new Label("My Files");
         if(!getName().equals("1")) {
             myFilesLabel.setText("FTP Files");
         }
         myFilesLabel.getStyleClass().add("filesLabel-" + getName());
         TableView tableView = new TableView();
         this.tableView = tableView;
-        tableView.setOnDragDetected(new EventHandler<MouseEvent>() {
-            @Override
-            public void handle(MouseEvent event) {
-                // On Table Row Drag TODO
-            }
-        });
-        tableView.setOnDragDropped(new EventHandler<DragEvent>() {
-            @Override
-            public void handle(DragEvent event) {
-                // On Table Row Drag dropped TODO
-            }
-        });
         TableColumn iconCol = new TableColumn("");
         iconCol.setCellValueFactory(new PropertyValueFactory<>("icon"));
         iconCol.setMaxWidth(500);
         TableColumn fileNamesCol = new TableColumn("Filename");
-        fileNamesCol.setCellValueFactory(new PropertyValueFactory<>("filename"));
+        fileNamesCol.setCellValueFactory(new PropertyValueFactory<>("obj"));
         TableColumn fileSizesCol = new TableColumn("Size");
         fileSizesCol.setCellValueFactory(new PropertyValueFactory<>("filesize"));
         TableColumn fileModified = new TableColumn("Last Modified");
@@ -225,7 +218,6 @@ public class FilesPanel extends Panel {
                                         @Override
                                         public void handle(KeyEvent event) {
                                             if(event.getCode().getName().equalsIgnoreCase("Enter")) {
-                                                //TODO Needs fixing (Table cell property value factory) <---
                                                 String fileName = fileCreateName.getText();
                                                 File file = new File(MainPage.get().getMyCurrentDirectory()
                                                         + "/" + fileName);
@@ -240,7 +232,8 @@ public class FilesPanel extends Panel {
                                                     }
                                                     setupMyCurrentDirectory();
                                                 } else {
-                                                    // TODO ERROR, it exists already
+                                                    JOptionPane.showMessageDialog(null, "FAILED: This file already exists",
+                                                            "ERROR", JOptionPane.ERROR_MESSAGE);
                                                 }
                                             }
                                         }
@@ -248,11 +241,14 @@ public class FilesPanel extends Panel {
                                     System.out.println("It runs");
                                     tableView.getItems().add(new PaneFile(null, fileCreateName, "", ""));
                                 } else {
-                                    // TODO FTP files
+                                    // FTP Files cannot be created through FTP
                                 }
                             }
                         }
                     });
+                    if(getName().equals("2")) {
+                        iconButton = null;
+                    }
                     break;
                 case 1:
                     //folder-up
@@ -395,11 +391,17 @@ public class FilesPanel extends Panel {
                     });
                     break;
             }
-            iconButton.setGraphic(imageView);
-            iconsBox.getChildren().add(iconButton);
+            if(iconButton !=null) {
+                iconButton.setGraphic(imageView);
+                iconsBox.getChildren().add(iconButton);
+            } else {
+                Button invisButton = new Button();
+                invisButton.setGraphic(imageView);
+                invisButton.setVisible(false);
+                iconsBox.getChildren().add(invisButton);
+            }
             count++;
         }
-        // TODO Gotta add iconsBox
         /**
          * URL TEXTFIELD (USER)
          */
@@ -407,7 +409,6 @@ public class FilesPanel extends Panel {
         this.currentDirectoryField = currentDirectoryField;
         currentDirectoryField.getStyleClass().add("URLField-" + getName());
         this.currentDirectoryField.setEditable(false);
-        // TODO Gotta add currentDirectoryField
         /**
          * USER CLIENT FTP VIEW FILES:
          */
@@ -423,11 +424,14 @@ public class FilesPanel extends Panel {
         MenuItem pasteItem = new MenuItem("Paste");
         MenuItem uploadItem = new MenuItem("Upload");
         MenuItem downloadItem = new MenuItem("Download");
+        MenuItem renameItem = new MenuItem("Rename");
+        renameItem.getStyleClass().add("context-item");
         copyItem.getStyleClass().add("context-item");
         pasteItem.getStyleClass().add("context-item");
         uploadItem.getStyleClass().add("context-item");
         downloadItem.getStyleClass().add("context-item");
         cm.getItems().addAll(copyItem, pasteItem);
+        cm.getItems().add(renameItem);
         if(getName().equals("1")) {
             cm.getItems().add(uploadItem);
         } else {
@@ -457,6 +461,12 @@ public class FilesPanel extends Panel {
             @Override
             public void handle(ActionEvent event) {
                 // TODO Download menu item
+            }
+        });
+        renameItem.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                // TODO Rename menu item
             }
         });
         // Set up double click action on table rows
@@ -512,7 +522,6 @@ public class FilesPanel extends Panel {
                 }
             }
         });
-        // TODO Add all of the items to this GridPane extension:
         if(getName().equals("1")) {
             // Buttons on right
             add(myFilesLabel, 0, 0);
