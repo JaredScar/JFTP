@@ -442,7 +442,21 @@ public class FilesPanel extends Panel {
         copyItem.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-                // TODO Copy the directory/file
+                // TODO Copy the directory/file - NEEDS TESTING
+                if(getName().equals("1")) {
+                    for (Object obj : tableView.getSelectionModel().getSelectedItems()) {
+                        PaneFile paneFile = (PaneFile) obj;
+                        clipboardFilePaths.add(MainPage.get().getMyCurrentDirectory() + paneFile.getFilename());
+                    }
+                    currentClipFilesType = FileType.CLIENT;
+                } else {
+                    // FTP Copy
+                    for (Object obj : tableView.getSelectionModel().getSelectedItems()) {
+                        PaneFile paneFile = (PaneFile) obj;
+                        clipboardFilePaths.add(MainPage.get().getFtpCurrentDirectory() + paneFile.getFilename());
+                    }
+                    currentClipFilesType = FileType.FTP;
+                }
             }
         });
         pasteItem.setOnAction(new EventHandler<ActionEvent>() {
