@@ -3,7 +3,6 @@ package com.jaredscarito.jftp.model.pages;
 import com.jaredscarito.jftp.model.pages.panels.CommandPanel;
 import com.jaredscarito.jftp.model.pages.panels.FilesPanel;
 import com.jaredscarito.jftp.model.pages.panels.LoginPanel;
-import com.jaredscarito.jftp.model.pages.panels.Panel;
 import javafx.geometry.Pos;
 import javafx.scene.layout.GridPane;
 

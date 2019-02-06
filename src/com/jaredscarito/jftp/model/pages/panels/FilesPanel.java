@@ -463,6 +463,11 @@ public class FilesPanel extends Panel {
             @Override
             public void handle(ActionEvent event) {
                 // TODO Paste the copied directory/file in selected directory
+                if(getName().equals("1")) {
+                    // Client files
+                } else {
+                    // FTP Files
+                }
             }
         });
         uploadItem.setOnAction(new EventHandler<ActionEvent>() {
