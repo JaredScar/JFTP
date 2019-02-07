@@ -225,20 +225,19 @@ public class FilesPanel extends Panel {
                                                     // Doesn't exist, try creating
                                                     try {
                                                         file.createNewFile();
+                                                        MainPage.get().getCommandPanel().addMessage("SUCCESS: File " + file.getName() + " created",
+                                                                "GREEN", false); // CommandMessage
                                                     } catch (IOException e) {
-                                                        JOptionPane.showMessageDialog(null,
-                                                                "FAILED: " + e.getCause().getMessage(),
-                                                                "ERROR", JOptionPane.ERROR_MESSAGE);
+                                                        MainPage.get().getCommandPanel().addMessage("ERROR: " + e.getCause().getMessage(),
+                                                                "RED", true); // CommandMessage
                                                     }
                                                     setupMyCurrentDirectory();
                                                 } else {
-                                                    JOptionPane.showMessageDialog(null, "FAILED: This file already exists",
-                                                            "ERROR", JOptionPane.ERROR_MESSAGE);
+                                                    MainPage.get().getCommandPanel().addMessage("ERROR: File already exists", "RED", true); // CommandMessage
                                                 }
                                             }
                                         }
                                     });
-                                    System.out.println("It runs");
                                     tableView.getItems().add(new PaneFile(null, fileCreateName, "", ""));
                                 } else {
                                     // FTP Files cannot be created through FTP
@@ -298,15 +297,17 @@ public class FilesPanel extends Panel {
                                         if (file.isDirectory()) {
                                             try {
                                                 FileUtils.deleteDirectory(file);
+                                                MainPage.get().getCommandPanel().addMessage("SUCCESS: File " + file.getName() + " deleted",
+                                                        "GREEN", false); // CommandMessage
                                             } catch (IOException e) {
                                                 // Failed deleting
-                                                JOptionPane.showMessageDialog(null, "FAILED: UNABLE TO DELETE DIRECTORY '" + selected.getFilename() + "'",
-                                                        "ERROR", JOptionPane.ERROR_MESSAGE);
+                                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete directory " + selected.getFilename(),
+                                                        "RED", true); // CommandMessage
                                             }
                                         } else {
                                             if (!file.delete()) {
-                                                JOptionPane.showMessageDialog(null, "FAILED: UNABLE TO DELETE FILE '" + selected.getFilename() + "'",
-                                                        "ERROR", JOptionPane.ERROR_MESSAGE);
+                                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete file " + selected.getFilename(),
+                                                        "RED", true); // CommandMessage
                                             }
                                         }
                                         setupMyCurrentDirectory();
@@ -318,18 +319,22 @@ public class FilesPanel extends Panel {
                                         if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
                                             try {
                                                 connection.getClient().deleteFile(MainPage.get().getFtpCurrentDirectory() + "/" + selected.getFilename());
+                                                MainPage.get().getCommandPanel().addMessage("SUCCESS: File " + selected.getFilename() + " deleted",
+                                                        "GREEN", false); // CommandMessage
                                             } catch (IOException e) {
-                                                JOptionPane.showMessageDialog(null, "FAILED UNABLE TO DELETE '" + selected.getFilename() + "'",
-                                                        "ERROR", JOptionPane.ERROR_MESSAGE);
+                                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete " + selected.getFilename(),
+                                                        "RED", true); // CommandMessage
                                             }
                                             setupFTPCurrentDirectory();
                                         } else {
                                             // Is just file name
                                             try {
                                                 connection.getClient().deleteFile(selected.getFilename());
+                                                MainPage.get().getCommandPanel().addMessage("SUCCESS: File " + selected.getFilename() + " deleted",
+                                                        "GREEN", false); // CommandMessage
                                             } catch (IOException e) {
-                                                JOptionPane.showMessageDialog(null, "FAILED UNABLE TO DELETE '" + selected.getFilename() + "'",
-                                                        "ERROR", JOptionPane.ERROR_MESSAGE);
+                                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete " + selected.getFilename(),
+                                                        "RED", true); // CommandMessage
                                             }
                                             setupFTPRootDirectory();
                                         }
