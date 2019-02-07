@@ -14,7 +14,6 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import org.apache.commons.net.ftp.FTPFile;
 
-import javax.swing.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -128,11 +127,12 @@ public class LoginPanel extends Panel {
                                     " = SUCCESS", "GREEN", true); // CommandMessage
                             connectButton.setText("Disconnect");
                         } else {
-                            JOptionPane.showMessageDialog(null, "FAILED TO CONNECT TO FTP SERVER", "ERROR", JOptionPane.ERROR_MESSAGE);
+                            MainPage.get().getCommandPanel().addMessage("ERROR: Failed to connect to " + host + ":" + port, "RED", true); // CommandMessage
                             connection = null;
                         }
                     } else {
                         // It is the disconnect button
+                        MainPage.get().getCommandPanel().addMessage("Connection: Disconnected from FTP Server", "GRAY", false); // CommandMessage
                         MainPage.get().getFtpFilesPanel().getTableView().getItems().clear();
                         connection.disconnect();
                         connection = null;
