@@ -444,16 +444,20 @@ public class FilesPanel extends Panel {
             public void handle(ActionEvent event) {
                 // TODO Copy the directory/file - NEEDS TESTING
                 if(getName().equals("1")) {
+                    MainPage.get().getCommandPanel().addMessage("Copied Files: ", "BLUE", true); // CommandMessage
                     for (Object obj : tableView.getSelectionModel().getSelectedItems()) {
                         PaneFile paneFile = (PaneFile) obj;
                         clipboardFilePaths.add(MainPage.get().getMyCurrentDirectory() + paneFile.getFilename());
+                        MainPage.get().getCommandPanel().addMessage("Client File Copied - " + paneFile.getFilename(), "BLUE", false); // CommandMessage
                     }
                     currentClipFilesType = FileType.CLIENT;
                 } else {
                     // FTP Copy
+                    MainPage.get().getCommandPanel().addMessage("Copied Files: ", "BLUE", true); // CommandMessage
                     for (Object obj : tableView.getSelectionModel().getSelectedItems()) {
                         PaneFile paneFile = (PaneFile) obj;
                         clipboardFilePaths.add(MainPage.get().getFtpCurrentDirectory() + paneFile.getFilename());
+                        MainPage.get().getCommandPanel().addMessage("FTP File Copied - " + paneFile.getFilename(), "BLUE", false); // CommandMessage
                     }
                     currentClipFilesType = FileType.FTP;
                 }

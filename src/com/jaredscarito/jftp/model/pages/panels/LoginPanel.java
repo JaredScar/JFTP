@@ -94,6 +94,7 @@ public class LoginPanel extends Panel {
                         } catch (NumberFormatException ex) {}
                         String username = userField.getText();
                         String pass = passField.getText();
+                        MainPage.get().getCommandPanel().addMessage("Connection: Attempting to connect to " + host + ":" + port, "GRAY", true); // CommandMessage
                         connection = new FTPConnect(host, port, username, pass);
                         if (connection.connect()) {
                             for (FTPFile file : connection.getFiles()) {
@@ -123,6 +124,8 @@ public class LoginPanel extends Panel {
                              ftpFilesView.getItems().add(new PaneFile(name, size, lastModified));
                              }
                              /**/
+                            MainPage.get().getCommandPanel().addMessage("Connection: Attempting to connect to " + host + ":" + port +
+                                    " = SUCCESS", "GREEN", true); // CommandMessage
                             connectButton.setText("Disconnect");
                         } else {
                             JOptionPane.showMessageDialog(null, "FAILED TO CONNECT TO FTP SERVER", "ERROR", JOptionPane.ERROR_MESSAGE);
