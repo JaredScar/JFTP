@@ -1,5 +1,6 @@
 package com.jaredscarito.jftp.model.pages.panels;
 
+import com.jaredscarito.jftp.api.SoundUtils;
 import com.jaredscarito.jftp.controller.MainController;
 import com.jaredscarito.jftp.model.FTPConnect;
 import com.jaredscarito.jftp.model.PaneFile;
@@ -26,10 +27,8 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.Timer;
-import java.util.TimerTask;
 
 public class FilesPanel extends Panel {
     public FilesPanel() {}
@@ -160,7 +159,7 @@ public class FilesPanel extends Panel {
         FTP;
     }
     private FileType currentClipFilesType;
-    private List<String> clipboardFilePaths = new ArrayList<>();
+    private HashMap<String, String> clipboardFilePaths = new HashMap<>();
 
     @Override
     public void init() {
@@ -234,6 +233,7 @@ public class FilesPanel extends Panel {
                                                     setupMyCurrentDirectory();
                                                 } else {
                                                     MainPage.get().getCommandPanel().addMessage("ERROR: File already exists", "RED", true); // CommandMessage
+                                                    SoundUtils.getInstance().playErrorSound(); // Error Sound
                                                 }
                                             }
                                         }
@@ -303,11 +303,13 @@ public class FilesPanel extends Panel {
                                                 // Failed deleting
                                                 MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete directory " + selected.getFilename(),
                                                         "RED", true); // CommandMessage
+                                                SoundUtils.getInstance().playErrorSound(); // Error Sound
                                             }
                                         } else {
                                             if (!file.delete()) {
                                                 MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete file " + selected.getFilename(),
                                                         "RED", true); // CommandMessage
+                                                SoundUtils.getInstance().playErrorSound(); // Error Sound
                                             }
                                         }
                                         setupMyCurrentDirectory();
@@ -324,6 +326,7 @@ public class FilesPanel extends Panel {
                                             } catch (IOException e) {
                                                 MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete " + selected.getFilename(),
                                                         "RED", true); // CommandMessage
+                                                SoundUtils.getInstance().playErrorSound(); // Error Sound
                                             }
                                             setupFTPCurrentDirectory();
                                         } else {
@@ -335,6 +338,7 @@ public class FilesPanel extends Panel {
                                             } catch (IOException e) {
                                                 MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete " + selected.getFilename(),
                                                         "RED", true); // CommandMessage
+                                                SoundUtils.getInstance().playErrorSound(); // Error Sound
                                             }
                                             setupFTPRootDirectory();
                                         }
@@ -447,12 +451,11 @@ public class FilesPanel extends Panel {
         copyItem.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-                // TODO Copy the directory/file - NEEDS TESTING
                 if(getName().equals("1")) {
                     MainPage.get().getCommandPanel().addMessage("Copied Files: ", "BLUE", true); // CommandMessage
                     for (Object obj : tableView.getSelectionModel().getSelectedItems()) {
                         PaneFile paneFile = (PaneFile) obj;
-                        clipboardFilePaths.add(MainPage.get().getMyCurrentDirectory() + paneFile.getFilename());
+                        clipboardFilePaths.put(MainPage.get().getMyCurrentDirectory() + "\\\\" +  paneFile.getFilename(), paneFile.getFilename());
                         MainPage.get().getCommandPanel().addMessage("Client File Copied - " + paneFile.getFilename(), "BLUE", false); // CommandMessage
                     }
                     currentClipFilesType = FileType.CLIENT;
@@ -461,7 +464,7 @@ public class FilesPanel extends Panel {
                     MainPage.get().getCommandPanel().addMessage("Copied Files: ", "BLUE", true); // CommandMessage
                     for (Object obj : tableView.getSelectionModel().getSelectedItems()) {
                         PaneFile paneFile = (PaneFile) obj;
-                        clipboardFilePaths.add(MainPage.get().getFtpCurrentDirectory() + paneFile.getFilename());
+                        clipboardFilePaths.put(MainPage.get().getMyCurrentDirectory() + "\\\\" +  paneFile.getFilename(), paneFile.getFilename());
                         MainPage.get().getCommandPanel().addMessage("FTP File Copied - " + paneFile.getFilename(), "BLUE", false); // CommandMessage
                     }
                     currentClipFilesType = FileType.FTP;
@@ -471,11 +474,93 @@ public class FilesPanel extends Panel {
         pasteItem.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
-                // TODO Paste the copied directory/file in selected directory
+                MainPage.get().getCommandPanel().addMessage("Attempting to paste files...", "GRAY", false); // CommandMessage
                 if(getName().equals("1")) {
                     // Client files
+                    if(currentClipFilesType == FileType.CLIENT) {
+                        //Paste client files to client side
+                        for(String key : clipboardFilePaths.keySet()) {
+                            String filePath = key;
+                            String fileName = clipboardFilePaths.get(key);
+                            PaneFile pf = (PaneFile) tableView.getSelectionModel().getSelectedItem();
+                            if(tableView.getSelectionModel().getSelectedCells().size() == 0 || pf == null
+                                    || new File(MainPage.get().getMyCurrentDirectory() + "\\\\" + pf.getFilename()).isFile()) {
+                                // Paste it in current directory
+                                try {
+                                    FileUtils.copyFileToDirectory(new File(filePath), new File(MainPage.get().getMyCurrentDirectory()));
+                                    MainPage.get().getCommandPanel().addMessage("File pasted - " + fileName, "GREEN", false); // CommandMessage
+                                } catch (IOException e) {
+                                    MainPage.get().getCommandPanel().addMessage("ERROR: " + e.getMessage(), "RED", true); // CommandMessage
+                                    SoundUtils.getInstance().playErrorSound(); // Error Sound
+                                    e.printStackTrace();
+                                }
+                            } else {
+                                // Paste it in selected directory
+                                try {
+                                    FileUtils.copyFileToDirectory(new File(filePath), new File(MainPage.get().getMyCurrentDirectory() + "\\\\" + pf.getFilename()));
+                                    MainPage.get().getCommandPanel().addMessage("File pasted - " + fileName, "GREEN", false); // CommandMessage
+                                } catch (IOException e) {
+                                    MainPage.get().getCommandPanel().addMessage("ERROR: " + e.getMessage(), "RED", true); // CommandMessage
+                                    SoundUtils.getInstance().playErrorSound(); // Error Sound
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    } else {
+                        // Paste FTP files to client side
+                        for(String filePath : clipboardFilePaths.keySet()) {
+                            String fileFilename = clipboardFilePaths.get(filePath);
+                            PaneFile pf = (PaneFile) tableView.getSelectionModel().getSelectedItem();
+                            File f = new File(MainPage.get().getMyCurrentDirectory() + pf.getFilename());
+                            if(tableView.getSelectionModel().getSelectedCells().size() == 0 || f.isFile()) {
+                                // Paste it in current directory for clients
+                                if(MainPage.get().getLoginPanel().getConnection().downloadFile(filePath, MainPage.get().getMyCurrentDirectory())) {
+                                    MainPage.get().getCommandPanel().addMessage("SUCCESS: Pasted file -" + fileFilename, "GREEN", true); // CommandMessage
+                                } else {
+                                    MainPage.get().getCommandPanel().addMessage("ERROR: Unable to paste file - " + fileFilename, "RED", true); // CommandMessage
+                                    SoundUtils.getInstance().playErrorSound(); // Error Sound
+                                }
+                            } else {
+                                // Paste it in selected directory if folder
+                                if(MainPage.get().getLoginPanel().getConnection().downloadFile(filePath, MainPage.get().getMyCurrentDirectory() + pf.getFilename())) {
+                                    MainPage.get().getCommandPanel().addMessage("SUCCESS: Pasted file - " + fileFilename, "GREEN", true); // CommandMessage
+                                } else {
+                                    MainPage.get().getCommandPanel().addMessage("ERROR: Unable to paste file - " + fileFilename, "RED", true); // CommandMessage
+                                    SoundUtils.getInstance().playErrorSound(); // Error Sound
+                                }
+                            }
+                        }
+                    }
                 } else {
                     // FTP Files
+                    if(currentClipFilesType == FileType.CLIENT) {
+                        // Paste client files to FTP side
+                        for(String filePath : clipboardFilePaths.keySet()) {
+                            String fileFilename = clipboardFilePaths.get(filePath);
+                            PaneFile pf = (PaneFile) tableView.getSelectionModel().getSelectedItem();
+                            boolean isFolder = MainPage.get().getLoginPanel().getConnection().isDirectory(MainPage.get().getFtpCurrentDirectory() + pf.getFilename());
+                            if(isFolder) {
+                                // We want to paste them in here
+                                if(MainPage.get().getLoginPanel().getConnection().uploadFile(filePath, MainPage.get().getFtpCurrentDirectory() + pf.getFilename())) {
+                                    MainPage.get().getCommandPanel().addMessage("SUCCESS: Pasted file with path " + filePath, "GREEN", true); // CommandMessage
+                                } else {
+                                    MainPage.get().getCommandPanel().addMessage("ERROR: Unable to paste file with path " + filePath, "RED", true); // CommandMessage
+                                    SoundUtils.getInstance().playErrorSound(); // Error Sound
+                                }
+                            } else {
+                                // We paste them in current FTP directory
+                                if(MainPage.get().getLoginPanel().getConnection().uploadFile(filePath, MainPage.get().getFtpCurrentDirectory())) {
+                                    MainPage.get().getCommandPanel().addMessage("SUCCESS: Pasted file with path " + filePath, "GREEN", true); // CommandMessage
+                                } else {
+                                    MainPage.get().getCommandPanel().addMessage("ERROR: Unable to paste file with path " + filePath, "RED", true); // CommandMessage
+                                    SoundUtils.getInstance().playErrorSound(); // Error Sound
+                                }
+                            }
+                        }
+                    } else {
+                        // Paste FTP files to FTP side
+                        // This can't be done as there is no method in FTPClient to do it
+                    }
                 }
             }
         });
@@ -495,6 +580,11 @@ public class FilesPanel extends Panel {
             @Override
             public void handle(ActionEvent event) {
                 // TODO Rename menu item
+                if(getName().equals("1")) {
+                    // Client files
+                } else {
+                    // FTP Files
+                }
             }
         });
         // Set up double click action on table rows

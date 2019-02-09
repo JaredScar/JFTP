@@ -66,11 +66,27 @@ public class FTPConnect {
         }
     }
 
-    public boolean uploadFile(String localFilePath, String fileName, String ftpDestDir) {
+    public boolean isDirectory(String filePath) {
+        try {
+            FTPFile[] files = this.client.listFiles(filePath);
+            if(files.length == 0) {
+                return false;
+            } else {
+                return true;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean uploadFile(String localFilePath, String ftpDestDir) {
         try {
             InputStream inp = new FileInputStream(new File(localFilePath));
-            if(this.client.storeFile(ftpDestDir + fileName, inp))
+            if(this.client.storeFile(ftpDestDir, inp)) {
+                inp.close();
                 return true;
+            }
         } catch (Exception e) {
             return false;
         }
@@ -79,35 +95,12 @@ public class FTPConnect {
     public boolean downloadFile(String ftpFilePath, String localDestDir) {
         try {
             FileOutputStream fos = new FileOutputStream(localDestDir);
-            if(this.client.retrieveFile(ftpFilePath, fos))
+            if(this.client.retrieveFile(ftpFilePath, fos)) {
+                fos.close();
                 return true;
-        } catch (IOException ex) {
-            return false;
-        }
-        return false;
-    }
-
-    public boolean fileExists(String fileName) {
-        try {
-            for (FTPFile file : this.client.listFiles()) {
-                if(file.getName().equals(fileName)) {
-                    return true;
-                }
             }
         } catch (IOException ex) {
             return false;
-        }
-        return false;
-    }
-    public boolean deleteFile(String fileName, String absPath) {
-        if(this.fileExists(fileName)) {
-            try {
-                this.client.deleteFile(absPath);
-                // TODO Do aestetics
-                return true;
-            } catch (IOException e) {
-                return false;
-            }
         }
         return false;
     }
