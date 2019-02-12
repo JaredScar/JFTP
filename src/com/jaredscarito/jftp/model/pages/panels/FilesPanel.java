@@ -537,17 +537,17 @@ public class FilesPanel extends Panel {
                         if(isFolder) {
                             // We want to paste them in here
                             if(MainPage.get().getLoginPanel().getConnection().uploadFile(filePath, MainPage.get().getFtpCurrentDirectory() + pf.getFilename())) {
-                                MainPage.get().getCommandPanel().addMessage("SUCCESS: Pasted file with path " + filePath, "GREEN", true); // CommandMessage
+                                MainPage.get().getCommandPanel().addMessage("SUCCESS: Pasted file - " + fileFilename, "GREEN", true); // CommandMessage
                             } else {
-                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to paste file with path " + filePath, "RED", true); // CommandMessage
+                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to paste file - " + fileFilename, "RED", true); // CommandMessage
                                 SoundUtils.getInstance().playErrorSound(); // Error Sound
                             }
                         } else {
                             // We paste them in current FTP directory
                             if(MainPage.get().getLoginPanel().getConnection().uploadFile(filePath, MainPage.get().getFtpCurrentDirectory())) {
-                                MainPage.get().getCommandPanel().addMessage("SUCCESS: Pasted file with path " + filePath, "GREEN", true); // CommandMessage
+                                MainPage.get().getCommandPanel().addMessage("SUCCESS: Pasted file - " + fileFilename, "GREEN", true); // CommandMessage
                             } else {
-                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to paste file with path " + filePath, "RED", true); // CommandMessage
+                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to paste file - " + fileFilename, "RED", true); // CommandMessage
                                 SoundUtils.getInstance().playErrorSound(); // Error Sound
                             }
                         }
@@ -555,30 +555,47 @@ public class FilesPanel extends Panel {
                 } else {
                     // Paste FTP files to FTP side
                     // This can't be done as there is no method in FTPClient to do it
+                    MainPage.get().getCommandPanel().addMessage("ERROR: Unable to paste FTP Files to FTP Server", "RED", true); // CommandMessage
+                    SoundUtils.getInstance().playErrorSound(); // Error Sound
                 }
             }
         });
-        uploadItem.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent event) {
-                // TODO Upload menu item
-            }
-        });
-        downloadItem.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent event) {
-                // TODO Download menu item
-            }
-        });
-        renameItem.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent event) {
-                // TODO Rename menu item
-                if(getName().equals("1")) {
-                    // Client files
+        uploadItem.setOnAction(event -> {
+            // Upload menu item
+            MainPage.get().getCommandPanel().addMessage("Attempting to upload files... ", "GRAY", false); // CommandMessage
+            for(Object row : tableView.getSelectionModel().getSelectedItems()) {
+                PaneFile pf = (PaneFile) row;
+                String path = MainPage.get().getMyCurrentDirectory() + "/" + pf.getFilename();
+                if(MainPage.get().getLoginPanel().getConnection().uploadFile(path, MainPage.get().getFtpCurrentDirectory())) {
+                    MainPage.get().getCommandPanel().addMessage("SUCCESS: Uploaded file - " + pf.getFilename(), "GREEN", true); // CommandMessage
                 } else {
-                    // FTP Files
+                    // Error
+                    MainPage.get().getCommandPanel().addMessage("ERROR: Unable to upload file - " + pf.getFilename(), "RED", true); // CommandMessage
+                    SoundUtils.getInstance().playErrorSound(); // Error Sound
                 }
+            }
+        });
+        downloadItem.setOnAction(event -> {
+            // Download menu item
+            MainPage.get().getCommandPanel().addMessage("Attempting to download files... ", "GRAY", false); // CommandMessage
+            for(Object row : tableView.getSelectionModel().getSelectedItems()) {
+                PaneFile pf = (PaneFile) row;
+                String path = MainPage.get().getFtpCurrentDirectory() + "/" + pf.getFilename();
+                if(MainPage.get().getLoginPanel().getConnection().downloadFile(path, MainPage.get().getMyCurrentDirectory())) {
+                    MainPage.get().getCommandPanel().addMessage("SUCCESS: Downloaded file - " + pf.getFilename(), "GREEN", true); // CommandMessage
+                } else {
+                    // Error
+                    MainPage.get().getCommandPanel().addMessage("ERROR: Unable to download file - " + pf.getFilename(), "RED", true); // CommandMessage
+                    SoundUtils.getInstance().playErrorSound(); // Error Sound
+                }
+            }
+        });
+        renameItem.setOnAction(event -> {
+            // TODO Rename menu item
+            if(getName().equals("1")) {
+                // Client files
+            } else {
+                // FTP Files
             }
         });
         // Set up double click action on table rows
