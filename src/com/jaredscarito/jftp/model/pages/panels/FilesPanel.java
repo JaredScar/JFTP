@@ -594,6 +594,8 @@ public class FilesPanel extends Panel {
             // TODO Rename menu item
             if(getName().equals("1")) {
                 // Client files
+                PaneFile selectedFile = (PaneFile) this.tableView.getSelectionModel().getSelectedItem();
+                //
             } else {
                 // FTP Files
             }
@@ -615,7 +617,7 @@ public class FilesPanel extends Panel {
                         clickCount = 0;
                         PaneFile pf = (PaneFile) tableView.getSelectionModel().getSelectedItem();
                         if (getName().equals("1")) {
-                            String temp = "";
+                            String temp;
                             if (!MainPage.get().getMyCurrentDirectory().equals("ROOT1337")) {
                                 temp = MainPage.get().getMyCurrentDirectory() + "/" + pf.getFilename();
                             } else {
