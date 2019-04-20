@@ -593,9 +593,29 @@ public class FilesPanel extends Panel {
         renameItem.setOnAction(event -> {
             // TODO Rename menu item
             if(getName().equals("1")) {
-                // Client files
+                // Client files TODO Needs testing
                 PaneFile selectedFile = (PaneFile) this.tableView.getSelectionModel().getSelectedItem();
-                //
+                TextField field = new TextField("");
+                this.tableView.getItems().remove(selectedFile);
+                field.setOnKeyPressed(event1 -> {
+                    if(event1.getCode().getName().equalsIgnoreCase("ENTER")) {
+                        // Now we want to rename the client file below
+                        File file = new File(MainPage.get().getMyCurrentDirectory() + selectedFile.getFilename());
+                        if(file.renameTo(new File(MainPage.get().getMyCurrentDirectory() + field.getText()))) {
+                            // Success
+                            setupMyCurrentDirectory();
+                            MainPage.get().getCommandPanel().addMessage("SUCCESS: Renamed file '" +
+                                    selectedFile.getFilename() + "' to '" + field.getText() + "'", "GREEN", true);
+                        } else {
+                            // Error
+                            MainPage.get().getCommandPanel().addMessage("ERROR: Unable to rename file '" +
+                                    selectedFile.getFilename() + "' to '" + field.getText() + "'", "RED", true);
+                        }
+                    }
+                });
+                PaneFile renamePane = new PaneFile(null, field, selectedFile.getFilesize(), selectedFile.getLastModified());
+                this.tableView.getItems().add(renamePane);
+                this.tableView.getSelectionModel().select(renamePane);
             } else {
                 // FTP Files
             }
