@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="JFTP:jar">
+    <output-path>$PROJECT_DIR$</output-path>
+    <root id="archive" name="JFTP.jar">
+      <element id="module-output" name="JFTP" />
+      <element id="extracted-dir" path="$USER_HOME$/Downloads/commons-io-2.6.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$USER_HOME$/Downloads/commons-net-3.6.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

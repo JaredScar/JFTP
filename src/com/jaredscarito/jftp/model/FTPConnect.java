@@ -104,7 +104,30 @@ public class FTPConnect {
         }
         return false;
     }
+    public boolean makeDirectory(String path) {
+        try {
+            return this.client.makeDirectory(path);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     public boolean renameFTPFile(String oldName, String newName) {
-        return false; // TODO
+        try {
+            return this.client.rename(oldName, newName);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    public boolean deletePath(String path) {
+        try {
+            if (this.client.deleteFile(path)) {
+                return true;
+            }
+            return this.client.removeDirectory(path);
+        } catch (IOException e) {
+            return false;
+        }
     }
 }

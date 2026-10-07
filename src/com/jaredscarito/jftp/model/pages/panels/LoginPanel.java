@@ -1,13 +1,18 @@
 package com.jaredscarito.jftp.model.pages.panels;
 
+import com.jaredscarito.jftp.model.AppSettings;
 import com.jaredscarito.jftp.model.FTPConnect;
 import com.jaredscarito.jftp.model.PaneFile;
 import com.jaredscarito.jftp.model.pages.MainPage;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.Priority;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
@@ -46,35 +51,60 @@ public class LoginPanel extends Panel {
     }
 
     @Override
-    public void init() { 
-        setHgap(30);
-        Label hostLab = new Label("Host:");
-        hostLab.getStyleClass().add("login-label");
-        add(hostLab, 0, 0);
+    public void init() {
+        setPadding(new Insets(10, 12, 10, 12));
+        setHgap(8);
+        setMaxWidth(Double.MAX_VALUE);
+        setAlignment(Pos.CENTER_LEFT);
+
+        ColumnConstraints hostCol = new ColumnConstraints();
+        hostCol.setHgrow(Priority.ALWAYS);
+        hostCol.setFillWidth(true);
+        hostCol.setMinWidth(160);
+        ColumnConstraints portCol = new ColumnConstraints();
+        portCol.setMinWidth(76);
+        portCol.setPrefWidth(84);
+        portCol.setMaxWidth(100);
+        ColumnConstraints userCol = new ColumnConstraints();
+        userCol.setHgrow(Priority.SOMETIMES);
+        userCol.setFillWidth(true);
+        userCol.setMinWidth(120);
+        userCol.setPrefWidth(160);
+        ColumnConstraints passCol = new ColumnConstraints();
+        passCol.setHgrow(Priority.SOMETIMES);
+        passCol.setFillWidth(true);
+        passCol.setMinWidth(120);
+        passCol.setPrefWidth(160);
+        ColumnConstraints buttonCol = new ColumnConstraints();
+        buttonCol.setMinWidth(118);
+        buttonCol.setPrefWidth(128);
+        getColumnConstraints().addAll(hostCol, portCol, userCol, passCol, buttonCol);
+
         TextField hostField = new TextField();
+        hostField.setPromptText("Host");
+        hostField.setMaxWidth(Double.MAX_VALUE);
         hostField.getStyleClass().add("login-textfield");
-        add(hostField, 0, 1);
-        Label portLab = new Label("Port:");
-        portLab.getStyleClass().add("login-label");
-        add(portLab, 1, 0);
-        TextField portField = new TextField();
+        add(hostField, 0, 0);
+        TextField portField = new TextField(Integer.toString(AppSettings.defaultPort()));
+        portField.setPromptText("Port");
+        portField.setMaxWidth(Double.MAX_VALUE);
         portField.getStyleClass().add("login-textfield");
-        add(portField, 1, 1);
-        Label userLab = new Label("Username:");
-        userLab.getStyleClass().add("login-label");
-        add(userLab, 2, 0);
+        add(portField, 1, 0);
         TextField userField = new TextField();
+        userField.setPromptText("Username");
+        userField.setMaxWidth(Double.MAX_VALUE);
         userField.getStyleClass().add("login-textfield");
-        add(userField, 2, 1);
-        Label passLab = new Label("Password:");
-        passLab.getStyleClass().add("login-label");
-        add(passLab, 3, 0);
+        add(userField, 2, 0);
         PasswordField passField = new PasswordField();
+        passField.setPromptText("Password");
+        passField.setMaxWidth(Double.MAX_VALUE);
         passField.getStyleClass().add("login-textfield");
-        add(passField, 3, 1);
+        add(passField, 3, 0);
         Button connectBtn = new Button("Connect");
+        connectBtn.setMaxWidth(Double.MAX_VALUE);
+        connectBtn.setPrefHeight(32);
         connectBtn.getStyleClass().add("login-button");
-        add(connectBtn, 4, 1);
+        add(connectBtn, 4, 0);
         this.connectButton = connectBtn;
         this.hostField = hostField;
         this.portField = portField;
@@ -86,17 +116,38 @@ public class LoginPanel extends Panel {
             public void handle(MouseEvent event) {
                 if(event.getButton() == MouseButton.PRIMARY) {
                     if (connection == null) {
-                        String host = hostField.getText();
-                        int port = 0;
-                        try {
-                            port = Integer.parseInt(portField.getText());
-                        } catch (NumberFormatException ex) {}
+                        String host = hostField.getText().trim();
+                        if (host.isEmpty()) {
+                            MainPage.get().getCommandPanel().addMessage("ERROR: Enter a host before connecting.", "RED", true);
+                            return;
+                        }
+                        int port = AppSettings.defaultPort();
+                        String portText = portField.getText().trim();
+                        if (!portText.isEmpty()) {
+                            try {
+                                port = Integer.parseInt(portText);
+                            } catch (NumberFormatException ex) {
+                                MainPage.get().getCommandPanel().addMessage("ERROR: Port must be a number.", "RED", true);
+                                return;
+                            }
+                        }
+                        if (port < 1 || port > 65535) {
+                            MainPage.get().getCommandPanel().addMessage("ERROR: Port must be between 1 and 65535.", "RED", true);
+                            return;
+                        }
                         String username = userField.getText();
                         String pass = passField.getText();
                         MainPage.get().getCommandPanel().addMessage("Connection: Attempting to connect to " + host + ":" + port, "GRAY", true); // CommandMessage
                         connection = new FTPConnect(host, port, username, pass);
                         if (connection.connect()) {
-                            for (FTPFile file : connection.getFiles()) {
+                            FTPFile[] remoteFiles = connection.getFiles();
+                            if (remoteFiles == null) {
+                                remoteFiles = new FTPFile[0];
+                            }
+                            for (FTPFile file : remoteFiles) {
+                                if (file == null || file.getName() == null || file.getTimestamp() == null) {
+                                    continue;
+                                }
                                 String name = file.getName();
                                 String size = humanReadableByteCount(file.getSize(), true);
                                 DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
@@ -126,22 +177,48 @@ public class LoginPanel extends Panel {
                             MainPage.get().getCommandPanel().addMessage("Connection: Attempting to connect to " + host + ":" + port +
                                     " = SUCCESS", "GREEN", true); // CommandMessage
                             connectButton.setText("Disconnect");
+                            if (!connectButton.getStyleClass().contains("is-connected")) {
+                                connectButton.getStyleClass().add("is-connected");
+                            }
+                            MainPage.setStatus("Connected to " + host, true);
                         } else {
                             MainPage.get().getCommandPanel().addMessage("ERROR: Failed to connect to " + host + ":" + port, "RED", true); // CommandMessage
                             connection = null;
+                            MainPage.setStatus("Not connected", false);
                         }
                     } else {
                         // It is the disconnect button
                         MainPage.get().getCommandPanel().addMessage("Connection: Disconnected from FTP Server", "GRAY", false); // CommandMessage
-                        MainPage.get().getFtpFilesPanel().getTableView().getItems().clear();
+                        MainPage.get().getFtpFilesPanel().clearRemote();
                         connection.disconnect();
                         connection = null;
                         connectButton.setText("Connect");
+                        connectButton.getStyleClass().remove("is-connected");
+                        MainPage.setStatus("Not connected", false);
                     }
                 }
             }
         });
     }
+    public String getHost() {
+        return hostField.getText().trim();
+    }
+
+    public String getPortText() {
+        return portField.getText().trim();
+    }
+
+    public String getUsername() {
+        return userField.getText().trim();
+    }
+
+    public void applyPreset(String host, String port, String username) {
+        hostField.setText(host);
+        portField.setText(port);
+        userField.setText(username);
+        passField.clear();
+    }
+
     public static String humanReadableByteCount(long bytes, boolean si) {
         int unit = si ? 1000 : 1024;
         if (bytes < unit) return bytes + " B";

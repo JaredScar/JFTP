@@ -2,24 +2,36 @@ package com.jaredscarito.jftp.model.pages.panels;
 
 import com.jaredscarito.jftp.api.SoundUtils;
 import com.jaredscarito.jftp.controller.MainController;
+import com.jaredscarito.jftp.model.AppSettings;
 import com.jaredscarito.jftp.model.FTPConnect;
 import com.jaredscarito.jftp.model.PaneFile;
 import com.jaredscarito.jftp.model.pages.MainPage;
+import com.jaredscarito.jftp.view.UiDialogs;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.*;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.net.ftp.FTPFile;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -163,260 +175,125 @@ public class FilesPanel extends Panel {
 
     @Override
     public void init() {
-        getStyleClass().add("myFiles-pane");
+        getStyleClass().add("files-card");
+        setPadding(new Insets(10, 12, 12, 12));
+        setVgap(8);
+        setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+        ColumnConstraints stretch = new ColumnConstraints();
+        stretch.setHgrow(Priority.ALWAYS);
+        stretch.setPercentWidth(100);
+        getColumnConstraints().add(stretch);
+        RowConstraints headerRow = new RowConstraints();
+        headerRow.setVgrow(Priority.NEVER);
+        RowConstraints pathRow = new RowConstraints();
+        pathRow.setVgrow(Priority.NEVER);
+        RowConstraints tableRow = new RowConstraints();
+        tableRow.setVgrow(Priority.ALWAYS);
+        tableRow.setFillHeight(true);
+        getRowConstraints().addAll(headerRow, pathRow, tableRow);
+
         Label myFilesLabel = new Label("My Files");
         if(!getName().equals("1")) {
             myFilesLabel.setText("FTP Files");
         }
-        myFilesLabel.getStyleClass().add("filesLabel-" + getName());
+        myFilesLabel.getStyleClass().add("pane-title");
         TableView tableView = new TableView();
         this.tableView = tableView;
         TableColumn iconCol = new TableColumn("");
         iconCol.setCellValueFactory(new PropertyValueFactory<>("icon"));
-        iconCol.setMaxWidth(500);
+        iconCol.setPrefWidth(44);
+        iconCol.setMinWidth(44);
+        iconCol.setMaxWidth(44);
+        iconCol.setResizable(false);
         TableColumn fileNamesCol = new TableColumn("Filename");
         fileNamesCol.setCellValueFactory(new PropertyValueFactory<>("obj"));
+        fileNamesCol.setMinWidth(140);
         TableColumn fileSizesCol = new TableColumn("Size");
         fileSizesCol.setCellValueFactory(new PropertyValueFactory<>("filesize"));
+        fileSizesCol.setPrefWidth(90);
+        fileSizesCol.setMinWidth(72);
         TableColumn fileModified = new TableColumn("Last Modified");
         fileModified.setCellValueFactory(new PropertyValueFactory<>("lastModified"));
+        fileModified.setPrefWidth(150);
+        fileModified.setMinWidth(130);
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         tableView.getColumns().addAll(iconCol, fileNamesCol, fileSizesCol, fileModified);
-        ScrollPane scrollPane = new ScrollPane();
-        scrollPane.getStyleClass().add("scrollPane-" + this.getName());
-        tableView.getStyleClass().add("filesTable-" + this.getName());
-        scrollPane.setContent(tableView);
-        tableView.setPrefSize(400, 600);
+        tableView.getStyleClass().add("files-table");
+        tableView.setMinHeight(180);
+        tableView.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        Label empty = new Label(getName().equals("1") ? "This folder is empty" : "Connect to a server to browse remote files");
+        empty.getStyleClass().add("empty-state");
+        tableView.setPlaceholder(empty);
         tableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        tableView.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> markActive());
 
-        // My Files Buttons
-        ImageView[] images = {new ImageView(new Image("com/jaredscarito/jftp/resources/new-folder-icon.png")), new ImageView(new Image("com/jaredscarito/jftp/resources/folder-up-icon.png")),
-                new ImageView(new Image("com/jaredscarito/jftp/resources/delete-folder-icon.png")), new ImageView(new Image("com/jaredscarito/jftp/resources/reload-icon.png")),
-                new ImageView(new Image("com/jaredscarito/jftp/resources/home-icon.png"))};
-        VBox iconsBox = new VBox();
-        iconsBox.getStyleClass().add("icons-box");
-        Button iconButton;
-        int count = 0;
-        for(ImageView imageView : images) {
-            imageView.setFitWidth(30);
-            imageView.setFitHeight(30);
-            iconButton = new Button();
-            iconButton.getStyleClass().add("icon-button");
-            switch (count) {
-                case 0:
-                    // newFolder or new file
-                    iconButton.setId("new-folder-" + getName());
-                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
-                        @Override
-                        public void handle(MouseEvent event) {
-                            if(event.getButton() == MouseButton.PRIMARY) {
-                                if(getName().equals("1")) {
-                                    // create table row with TextFields which have action set up on 'enter' key to implement
-                                    TextField fileCreateName = new TextField("");
-                                    fileCreateName.setOnKeyPressed(new EventHandler<KeyEvent>() {
-                                        @Override
-                                        public void handle(KeyEvent event) {
-                                            if(event.getCode().getName().equalsIgnoreCase("Enter")) {
-                                                String fileName = fileCreateName.getText();
-                                                File file = new File(MainPage.get().getMyCurrentDirectory()
-                                                        + "/" + fileName);
-                                                if(!file.exists()) {
-                                                    // Doesn't exist, try creating
-                                                    try {
-                                                        file.createNewFile();
-                                                        MainPage.get().getCommandPanel().addMessage("SUCCESS: File " + file.getName() + " created",
-                                                                "GREEN", false); // CommandMessage
-                                                    } catch (IOException e) {
-                                                        MainPage.get().getCommandPanel().addMessage("ERROR: " + e.getCause().getMessage(),
-                                                                "RED", true); // CommandMessage
-                                                    }
-                                                    setupMyCurrentDirectory();
-                                                } else {
-                                                    MainPage.get().getCommandPanel().addMessage("ERROR: File already exists", "RED", true); // CommandMessage
-                                                    SoundUtils.getInstance().playErrorSound(); // Error Sound
-                                                }
-                                            }
-                                        }
-                                    });
-                                    tableView.getItems().add(new PaneFile(null, fileCreateName, "", ""));
-                                } else {
-                                    // FTP Files cannot be created through FTP
-                                }
-                            }
-                        }
-                    });
-                    if(getName().equals("2")) {
-                        iconButton = null;
-                    }
-                    break;
-                case 1:
-                    //folder-up
-                    iconButton.setId("folder-up-" + getName());
-                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
-                        @Override
-                        public void handle(MouseEvent event) {
-                            if(event.getButton() == MouseButton.PRIMARY) {
-                                if(getName().equals("1")) {
-                                    if (!MainPage.get().getMyCurrentDirectory().equals("ROOT1337")) {
-                                        String[] splitSlashes = MainPage.get().getMyCurrentDirectory().split("/");
-                                        if (MainPage.get().getMyCurrentDirectory().split("\\\\").length > 1) {
-                                            String lastSlashString = "/" + splitSlashes[splitSlashes.length - 1];
-                                            MainPage.get().setMyCurrentDirectory(MainPage.get().getMyCurrentDirectory().replace(lastSlashString, ""));
-                                            setupMyCurrentDirectory();
-                                        } else {
-                                            setupMyRootDirectory();
-                                        }
-                                    }
-                                } else {
-                                    if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
-                                        if(MainPage.get().getFtpCurrentDirectory().contains("/")) {
-                                            String[] split = MainPage.get().getFtpCurrentDirectory().split("/");
-                                            String lastSlashString = "/" + split[split.length - 1];
-                                            MainPage.get().setFtpCurrentDirectory(MainPage.get().getFtpCurrentDirectory().replace(lastSlashString, ""));
-                                            setupFTPCurrentDirectory();
-                                        } else {
-                                            setupFTPRootDirectory();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    break;
-                case 2:
-                    //delete-folder or file
-                    iconButton.setId("delete-folder-" + getName());
-                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
-                        @Override
-                        public void handle(MouseEvent event) {
-                            if(event.getButton() == MouseButton.PRIMARY) {
-                                if(getName().equals("1")) {
-                                    for (Object obj : tableView.getSelectionModel().getSelectedItems()) {
-                                        PaneFile selected = (PaneFile) obj;
-                                        File file = new File(MainPage.get().getMyCurrentDirectory() + "/" + selected.getFilename());
-                                        if (file.isDirectory()) {
-                                            try {
-                                                FileUtils.deleteDirectory(file);
-                                                MainPage.get().getCommandPanel().addMessage("SUCCESS: File " + file.getName() + " deleted",
-                                                        "GREEN", false); // CommandMessage
-                                            } catch (IOException e) {
-                                                // Failed deleting
-                                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete directory " + selected.getFilename(),
-                                                        "RED", true); // CommandMessage
-                                                SoundUtils.getInstance().playErrorSound(); // Error Sound
-                                            }
-                                        } else {
-                                            if (!file.delete()) {
-                                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete file " + selected.getFilename(),
-                                                        "RED", true); // CommandMessage
-                                                SoundUtils.getInstance().playErrorSound(); // Error Sound
-                                            }
-                                        }
-                                        setupMyCurrentDirectory();
-                                    }
-                                } else {
-                                    FTPConnect connection = MainPage.get().getLoginPanel().getConnection();
-                                    for(Object obj : tableView.getSelectionModel().getSelectedItems()) {
-                                        PaneFile selected = (PaneFile) obj;
-                                        if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
-                                            try {
-                                                connection.getClient().deleteFile(MainPage.get().getFtpCurrentDirectory() + "/" + selected.getFilename());
-                                                MainPage.get().getCommandPanel().addMessage("SUCCESS: File " + selected.getFilename() + " deleted",
-                                                        "GREEN", false); // CommandMessage
-                                            } catch (IOException e) {
-                                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete " + selected.getFilename(),
-                                                        "RED", true); // CommandMessage
-                                                SoundUtils.getInstance().playErrorSound(); // Error Sound
-                                            }
-                                            setupFTPCurrentDirectory();
-                                        } else {
-                                            // Is just file name
-                                            try {
-                                                connection.getClient().deleteFile(selected.getFilename());
-                                                MainPage.get().getCommandPanel().addMessage("SUCCESS: File " + selected.getFilename() + " deleted",
-                                                        "GREEN", false); // CommandMessage
-                                            } catch (IOException e) {
-                                                MainPage.get().getCommandPanel().addMessage("ERROR: Unable to delete " + selected.getFilename(),
-                                                        "RED", true); // CommandMessage
-                                                SoundUtils.getInstance().playErrorSound(); // Error Sound
-                                            }
-                                            setupFTPRootDirectory();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    break;
-                case 3:
-                    //reload
-                    iconButton.setId("reload-" + getName());
-                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
-                        @Override
-                        public void handle(MouseEvent event) {
-                            if(event.getButton() == MouseButton.PRIMARY) {
-                                if(getName().equals("1")) {
-                                    tableView.getItems().clear();
-                                    new Timer().schedule(new TimerTask() {
-                                        @Override
-                                        public void run() {
-                                            if (!MainPage.get().getMyCurrentDirectory().equals("ROOT1337")) {
-                                                setupMyCurrentDirectory();
-                                            } else {
-                                                setupMyRootDirectory();
-                                            }
-                                        }
-                                    }, 100L);
-                                } else {
-                                    new Timer().schedule(new TimerTask() {
-                                        @Override
-                                        public void run() {
-                                            if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
-                                                setupFTPCurrentDirectory();
-                                            } else {
-                                                setupFTPRootDirectory();
-                                            }
-                                        }
-                                    }, 100L);
-                                }
-                            }
-                        }
-                    });
-                    break;
-                case 4:
-                    //home
-                    iconButton.setId("home-" + getName());
-                    iconButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
-                        @Override
-                        public void handle(MouseEvent event) {
-                            if(event.getButton() == MouseButton.PRIMARY) {
-                                if(getName().equals("1")) {
-                                    setupMyRootDirectory();
-                                } else {
-                                    setupFTPRootDirectory();
-                                }
-                            }
-                        }
-                    });
-                    break;
+        boolean mdl2 = Font.getFamilies().contains("Segoe MDL2 Assets");
+        String[] glyphs = mdl2
+                ? new String[]{"\uE74A", "\uE80F", "\uE72C", "\uE710", "\uE74D"}
+                : new String[]{"\u2191", "\u2302", "\u21BB", "+", "\u2715"};
+        String[] tips = {"Up one level", "Home", "Refresh", "New file or folder", "Delete selected"};
+        HBox iconsBox = new HBox(4);
+        iconsBox.setAlignment(Pos.CENTER_RIGHT);
+        iconsBox.getStyleClass().add("toolbar");
+        for (int count = 0; count < tips.length; count++) {
+            Button iconButton = new Button();
+            iconButton.setMnemonicParsing(false);
+            iconButton.setFocusTraversable(false);
+            iconButton.setTooltip(new Tooltip(tips[count]));
+            iconButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+            iconButton.getStyleClass().add("pane-tool");
+            if (count == 4) {
+                iconButton.getStyleClass().add("danger");
             }
-            if(iconButton !=null) {
-                iconButton.setGraphic(imageView);
-                iconsBox.getChildren().add(iconButton);
-            } else {
-                Button invisButton = new Button();
-                invisButton.setGraphic(imageView);
-                invisButton.setVisible(false);
-                iconsBox.getChildren().add(invisButton);
-            }
-            count++;
+            Label glyph = new Label(glyphs[count]);
+            glyph.getStyleClass().add(mdl2 ? "mdl2-glyph" : "tool-glyph");
+            iconButton.setGraphic(glyph);
+            final int action = count;
+            iconButton.setOnAction(event -> {
+                markActive();
+                switch (action) {
+                    case 0:
+                        goUp();
+                        break;
+                    case 1:
+                        goHome();
+                        break;
+                    case 2:
+                        refresh();
+                        break;
+                    case 3:
+                        promptCreate();
+                        break;
+                    case 4:
+                        deleteSelected();
+                        break;
+                    default:
+                        break;
+                }
+            });
+            iconsBox.getChildren().add(iconButton);
         }
+        Button transferButton = new Button(isLocal() ? "Upload" : "Download");
+        transferButton.setFocusTraversable(false);
+        transferButton.getStyleClass().addAll("pane-tool", "accent");
+        transferButton.setTooltip(new Tooltip(isLocal() ? "Upload selected files" : "Download selected files"));
+        transferButton.setOnAction(event -> {
+            markActive();
+            if (isLocal()) {
+                uploadSelected();
+            } else {
+                downloadSelected();
+            }
+        });
+        iconsBox.getChildren().add(transferButton);
         /**
          * URL TEXTFIELD (USER)
          */
         TextField currentDirectoryField = new TextField("");
         this.currentDirectoryField = currentDirectoryField;
-        currentDirectoryField.getStyleClass().add("URLField-" + getName());
+        currentDirectoryField.getStyleClass().add("path-field");
+        currentDirectoryField.setMaxWidth(Double.MAX_VALUE);
         this.currentDirectoryField.setEditable(false);
         /**
          * USER CLIENT FTP VIEW FILES:
@@ -560,66 +437,9 @@ public class FilesPanel extends Panel {
                 }
             }
         });
-        uploadItem.setOnAction(event -> {
-            // Upload menu item
-            MainPage.get().getCommandPanel().addMessage("Attempting to upload files... ", "GRAY", false); // CommandMessage
-            for(Object row : tableView.getSelectionModel().getSelectedItems()) {
-                PaneFile pf = (PaneFile) row;
-                String path = MainPage.get().getMyCurrentDirectory() + "/" + pf.getFilename();
-                if(MainPage.get().getLoginPanel().getConnection().uploadFile(path, MainPage.get().getFtpCurrentDirectory())) {
-                    MainPage.get().getCommandPanel().addMessage("SUCCESS: Uploaded file - " + pf.getFilename(), "GREEN", true); // CommandMessage
-                } else {
-                    // Error
-                    MainPage.get().getCommandPanel().addMessage("ERROR: Unable to upload file - " + pf.getFilename(), "RED", true); // CommandMessage
-                    SoundUtils.getInstance().playErrorSound(); // Error Sound
-                }
-            }
-        });
-        downloadItem.setOnAction(event -> {
-            // Download menu item
-            MainPage.get().getCommandPanel().addMessage("Attempting to download files... ", "GRAY", false); // CommandMessage
-            for(Object row : tableView.getSelectionModel().getSelectedItems()) {
-                PaneFile pf = (PaneFile) row;
-                String path = MainPage.get().getFtpCurrentDirectory() + "/" + pf.getFilename();
-                if(MainPage.get().getLoginPanel().getConnection().downloadFile(path, MainPage.get().getMyCurrentDirectory())) {
-                    MainPage.get().getCommandPanel().addMessage("SUCCESS: Downloaded file - " + pf.getFilename(), "GREEN", true); // CommandMessage
-                } else {
-                    // Error
-                    MainPage.get().getCommandPanel().addMessage("ERROR: Unable to download file - " + pf.getFilename(), "RED", true); // CommandMessage
-                    SoundUtils.getInstance().playErrorSound(); // Error Sound
-                }
-            }
-        });
-        renameItem.setOnAction(event -> {
-            // TODO Rename menu item
-            if(getName().equals("1")) {
-                // Client files TODO Needs testing
-                PaneFile selectedFile = (PaneFile) this.tableView.getSelectionModel().getSelectedItem();
-                TextField field = new TextField("");
-                this.tableView.getItems().remove(selectedFile);
-                field.setOnKeyPressed(event1 -> {
-                    if(event1.getCode().getName().equalsIgnoreCase("ENTER")) {
-                        // Now we want to rename the client file below
-                        File file = new File(MainPage.get().getMyCurrentDirectory() + selectedFile.getFilename());
-                        if(file.renameTo(new File(MainPage.get().getMyCurrentDirectory() + field.getText()))) {
-                            // Success
-                            setupMyCurrentDirectory();
-                            MainPage.get().getCommandPanel().addMessage("SUCCESS: Renamed file '" +
-                                    selectedFile.getFilename() + "' to '" + field.getText() + "'", "GREEN", true);
-                        } else {
-                            // Error
-                            MainPage.get().getCommandPanel().addMessage("ERROR: Unable to rename file '" +
-                                    selectedFile.getFilename() + "' to '" + field.getText() + "'", "RED", true);
-                        }
-                    }
-                });
-                PaneFile renamePane = new PaneFile(null, field, selectedFile.getFilesize(), selectedFile.getLastModified());
-                this.tableView.getItems().add(renamePane);
-                this.tableView.getSelectionModel().select(renamePane);
-            } else {
-                // FTP Files
-            }
-        });
+        uploadItem.setOnAction(event -> uploadSelected());
+        downloadItem.setOnAction(event -> downloadSelected());
+        renameItem.setOnAction(event -> promptRename());
         // Set up double click action on table rows
         this.tableView.setOnMouseClicked(new EventHandler<MouseEvent>() {
             private int clickCount = 0;
@@ -636,10 +456,13 @@ public class FilesPanel extends Panel {
                     if(clickCount == 2) {
                         clickCount = 0;
                         PaneFile pf = (PaneFile) tableView.getSelectionModel().getSelectedItem();
+                        if (pf == null || pf.getFilename() == null) {
+                            return;
+                        }
                         if (getName().equals("1")) {
                             String temp;
                             if (!MainPage.get().getMyCurrentDirectory().equals("ROOT1337")) {
-                                temp = MainPage.get().getMyCurrentDirectory() + "/" + pf.getFilename();
+                                temp = new File(MainPage.get().getMyCurrentDirectory(), pf.getFilename()).getAbsolutePath();
                             } else {
                                temp = pf.getFilename();
                             }
@@ -650,6 +473,9 @@ public class FilesPanel extends Panel {
                             }
                         } else {
                             try {
+                                if (MainPage.get().getLoginPanel().getConnection() == null) {
+                                    return;
+                                }
                                 FTPFile[] files;
                                 if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
                                     files = MainPage.get().getLoginPanel().getConnection().getClient().listFiles(MainPage.get().getFtpCurrentDirectory() + "/" + pf.getFilename());
@@ -673,22 +499,389 @@ public class FilesPanel extends Panel {
                 }
             }
         });
-        if(getName().equals("1")) {
-            // Buttons on right
-            add(myFilesLabel, 0, 0);
-            add(scrollPane, 0, 2);
-            add(currentDirectoryField, 0, 1);
-            add(iconsBox, 1, 2);
-        } else {
-            // Buttons on left
-            add(myFilesLabel, 1, 0);
-            add(scrollPane, 1, 2);
-            add(currentDirectoryField, 1, 1);
-            add(iconsBox, 0, 2);
-        }
+        HBox header = new HBox(8);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("pane-header");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        header.getChildren().addAll(myFilesLabel, spacer, iconsBox);
+        setHgrow(header, Priority.ALWAYS);
+        setHgrow(currentDirectoryField, Priority.ALWAYS);
+        setVgrow(tableView, Priority.ALWAYS);
+        setHgrow(tableView, Priority.ALWAYS);
+        add(header, 0, 0);
+        add(currentDirectoryField, 0, 1);
+        add(tableView, 0, 2);
     }
 
     public TableView getTableView() {
         return this.tableView;
+    }
+
+    public boolean isLocal() {
+        return "1".equals(getName());
+    }
+
+    public void markActive() {
+        if (MainPage.get() != null) {
+            MainPage.get().setActiveFilesPanel(this);
+        }
+    }
+
+    public void clearRemote() {
+        tableView.getItems().clear();
+        MainPage.get().setFtpCurrentDirectory("ROOT1337");
+        if (currentDirectoryField != null) {
+            currentDirectoryField.setText("");
+        }
+    }
+
+    public void refresh() {
+        if (!isLocal() && connection() == null) {
+            error("Connect to an FTP server first.");
+            return;
+        }
+        if (isLocal()) {
+            if (isRoot()) {
+                setupMyRootDirectory();
+            } else {
+                setupMyCurrentDirectory();
+            }
+        } else if (isRoot()) {
+            setupFTPRootDirectory();
+        } else {
+            setupFTPCurrentDirectory();
+        }
+    }
+
+    public void goHome() {
+        if (!isLocal() && connection() == null) {
+            error("Connect to an FTP server first.");
+            return;
+        }
+        if (isLocal()) {
+            setupMyRootDirectory();
+        } else {
+            setupFTPRootDirectory();
+        }
+    }
+
+    public void goUp() {
+        if (isLocal()) {
+            if (isRoot()) {
+                info("Already at This PC.");
+                return;
+            }
+            File current = new File(MainPage.get().getMyCurrentDirectory());
+            File parent = current.getParentFile();
+            if (parent == null) {
+                setupMyRootDirectory();
+            } else {
+                MainPage.get().setMyCurrentDirectory(parent.getAbsolutePath());
+                setupMyCurrentDirectory();
+            }
+            return;
+        }
+        if (connection() == null) {
+            error("Connect to an FTP server first.");
+            return;
+        }
+        if (isRoot()) {
+            info("Already at the server root.");
+            return;
+        }
+        String dir = MainPage.get().getFtpCurrentDirectory();
+        int slash = dir.lastIndexOf('/');
+        if (slash <= 0) {
+            setupFTPRootDirectory();
+        } else {
+            MainPage.get().setFtpCurrentDirectory(dir.substring(0, slash));
+            setupFTPCurrentDirectory();
+        }
+    }
+
+    public void promptCreate() {
+        markActive();
+        if (isLocal() && isRoot()) {
+            error("Open a folder before creating a file or folder.");
+            return;
+        }
+        if (!isLocal() && connection() == null) {
+            error("Connect to an FTP server first.");
+            return;
+        }
+        Dialog<ButtonType> dialog = new Dialog<ButtonType>();
+        dialog.setTitle("Create");
+        dialog.setHeaderText(isLocal() ? "Create in My Files" : "Create on the server");
+        TextField nameField = new TextField();
+        nameField.setPromptText("Name");
+        RadioButton fileOption = new RadioButton("File");
+        RadioButton folderOption = new RadioButton("Folder");
+        ToggleGroup group = new ToggleGroup();
+        fileOption.setToggleGroup(group);
+        folderOption.setToggleGroup(group);
+        folderOption.setSelected(true);
+        VBox form = new VBox(10, nameField, new HBox(16, fileOption, folderOption));
+        dialog.getDialogPane().setContent(form);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        Node ok = dialog.getDialogPane().lookupButton(ButtonType.OK);
+        ok.setDisable(true);
+        nameField.textProperty().addListener((obs, oldValue, newValue) -> ok.setDisable(newValue == null || newValue.trim().isEmpty()));
+        UiDialogs.style(dialog);
+        Optional<ButtonType> result = dialog.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            createEntry(nameField.getText().trim(), folderOption.isSelected());
+        }
+    }
+
+    public void promptRename() {
+        markActive();
+        PaneFile selected = selectedFile();
+        if (selected == null) {
+            error("Select a file or folder to rename.");
+            return;
+        }
+        if (isLocal() && isRoot()) {
+            error("Drives can't be renamed from here.");
+            return;
+        }
+        if (!isLocal() && connection() == null) {
+            error("Connect to an FTP server first.");
+            return;
+        }
+        TextInputDialog dialog = new TextInputDialog(selected.getFilename());
+        dialog.setTitle("Rename");
+        dialog.setHeaderText("Rename " + selected.getFilename());
+        dialog.setContentText("New name");
+        UiDialogs.style(dialog);
+        Optional<String> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            renameTo(selected, result.get().trim());
+        }
+    }
+
+    public void deleteSelected() {
+        markActive();
+        List<PaneFile> files = selectedFiles();
+        if (files.isEmpty()) {
+            error("Select something to delete.");
+            return;
+        }
+        if (isLocal() && isRoot()) {
+            error("Drives can't be deleted from here.");
+            return;
+        }
+        if (!isLocal() && connection() == null) {
+            error("Connect to an FTP server first.");
+            return;
+        }
+        if (AppSettings.confirmDelete()) {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Delete");
+            alert.setHeaderText("Delete " + files.size() + (files.size() == 1 ? " item?" : " items?"));
+            alert.setContentText("This cannot be undone.");
+            UiDialogs.style(alert);
+            Optional<ButtonType> answer = alert.showAndWait();
+            if (!answer.isPresent() || answer.get() != ButtonType.OK) {
+                return;
+            }
+        }
+        for (PaneFile selected : files) {
+            if (isLocal()) {
+                File file = new File(MainPage.get().getMyCurrentDirectory(), selected.getFilename());
+                try {
+                    if (file.isDirectory()) {
+                        FileUtils.deleteDirectory(file);
+                    } else if (!file.delete()) {
+                        error("Unable to delete " + selected.getFilename());
+                        continue;
+                    }
+                    success("Deleted " + selected.getFilename());
+                } catch (IOException e) {
+                    error("Unable to delete " + selected.getFilename());
+                }
+            } else if (connection().deletePath(remotePath(selected.getFilename()))) {
+                success("Deleted " + selected.getFilename());
+            } else {
+                error("Unable to delete " + selected.getFilename());
+            }
+        }
+        refresh();
+    }
+
+    public void uploadSelected() {
+        if (!isLocal()) {
+            error("Select files in My Files to upload.");
+            return;
+        }
+        FTPConnect connection = connection();
+        if (connection == null) {
+            error("Connect to an FTP server before uploading.");
+            return;
+        }
+        if (isRoot()) {
+            error("Open a folder and select files to upload.");
+            return;
+        }
+        List<PaneFile> files = selectedFiles();
+        if (files.isEmpty()) {
+            error("Select a file to upload.");
+            return;
+        }
+        info("Uploading " + files.size() + (files.size() == 1 ? " file..." : " files..."));
+        for (PaneFile file : files) {
+            String localPath = new File(MainPage.get().getMyCurrentDirectory(), file.getFilename()).getAbsolutePath();
+            if (connection.uploadFile(localPath, remotePath(file.getFilename()))) {
+                success("Uploaded " + file.getFilename());
+            } else {
+                error("Unable to upload " + file.getFilename());
+            }
+        }
+        MainPage.get().getFtpFilesPanel().refresh();
+    }
+
+    public void downloadSelected() {
+        if (isLocal()) {
+            error("Select files in FTP Files to download.");
+            return;
+        }
+        FTPConnect connection = connection();
+        if (connection == null) {
+            error("Connect to an FTP server first.");
+            return;
+        }
+        if ("ROOT1337".equals(MainPage.get().getMyCurrentDirectory())) {
+            error("Open a local folder to download into.");
+            return;
+        }
+        List<PaneFile> files = selectedFiles();
+        if (files.isEmpty()) {
+            error("Select a file to download.");
+            return;
+        }
+        info("Downloading " + files.size() + (files.size() == 1 ? " file..." : " files..."));
+        for (PaneFile file : files) {
+            File dest = new File(MainPage.get().getMyCurrentDirectory(), file.getFilename());
+            if (connection.downloadFile(remotePath(file.getFilename()), dest.getAbsolutePath())) {
+                success("Downloaded " + file.getFilename());
+            } else {
+                error("Unable to download " + file.getFilename());
+            }
+        }
+        MainPage.get().getMyFilesPanel().refresh();
+    }
+
+    private void createEntry(String name, boolean directory) {
+        if (name.indexOf('/') >= 0 || name.indexOf('\\') >= 0 || ".".equals(name) || "..".equals(name)) {
+            error("That name can't be used.");
+            return;
+        }
+        if (isLocal()) {
+            File file = new File(MainPage.get().getMyCurrentDirectory(), name);
+            try {
+                boolean created = directory ? file.mkdir() : file.createNewFile();
+                if (created) {
+                    success((directory ? "Folder created: " : "File created: ") + name);
+                    setupMyCurrentDirectory();
+                } else {
+                    error("Couldn't create " + name + ". It may already exist.");
+                }
+            } catch (IOException e) {
+                error("Couldn't create " + name + ".");
+            }
+            return;
+        }
+        String path = remotePath(name);
+        try {
+            boolean created;
+            if (directory) {
+                created = connection().makeDirectory(path);
+            } else {
+                created = connection().getClient().storeFile(path, new ByteArrayInputStream(new byte[0]));
+            }
+            if (created) {
+                success((directory ? "Folder created: " : "File created: ") + name);
+                refresh();
+            } else {
+                error("Couldn't create " + name + " on the server.");
+            }
+        } catch (IOException e) {
+            error("Couldn't create " + name + " on the server.");
+        }
+    }
+
+    private void renameTo(PaneFile selected, String newName) {
+        if (newName.isEmpty() || newName.indexOf('/') >= 0 || newName.indexOf('\\') >= 0) {
+            error("That name can't be used.");
+            return;
+        }
+        if (isLocal()) {
+            File file = new File(MainPage.get().getMyCurrentDirectory(), selected.getFilename());
+            File dest = new File(MainPage.get().getMyCurrentDirectory(), newName);
+            if (file.renameTo(dest)) {
+                success("Renamed " + selected.getFilename() + " to " + newName);
+                setupMyCurrentDirectory();
+            } else {
+                error("Unable to rename " + selected.getFilename());
+            }
+            return;
+        }
+        if (connection().renameFTPFile(remotePath(selected.getFilename()), remotePath(newName))) {
+            success("Renamed " + selected.getFilename() + " to " + newName);
+            refresh();
+        } else {
+            error("Unable to rename " + selected.getFilename());
+        }
+    }
+
+    private boolean isRoot() {
+        String dir = isLocal() ? MainPage.get().getMyCurrentDirectory() : MainPage.get().getFtpCurrentDirectory();
+        return "ROOT1337".equals(dir);
+    }
+
+    private FTPConnect connection() {
+        return MainPage.get().getLoginPanel().getConnection();
+    }
+
+    private String remotePath(String name) {
+        String dir = MainPage.get().getFtpCurrentDirectory();
+        if (dir == null || dir.isEmpty() || "ROOT1337".equals(dir)) {
+            return name;
+        }
+        return dir + "/" + name;
+    }
+
+    private PaneFile selectedFile() {
+        List<PaneFile> files = selectedFiles();
+        if (files.isEmpty()) {
+            return null;
+        }
+        return files.get(0);
+    }
+
+    private List<PaneFile> selectedFiles() {
+        List<PaneFile> files = new ArrayList<PaneFile>();
+        for (Object item : new ArrayList<Object>(tableView.getSelectionModel().getSelectedItems())) {
+            if (item instanceof PaneFile) {
+                PaneFile file = (PaneFile) item;
+                if (file.getFilename() != null && !file.getFilename().trim().isEmpty()) {
+                    files.add(file);
+                }
+            }
+        }
+        return files;
+    }
+
+    private void info(String message) {
+        MainPage.get().getCommandPanel().addMessage(message, "#64748b", false);
+    }
+
+    private void success(String message) {
+        MainPage.get().getCommandPanel().addMessage(message, "GREEN", false);
+    }
+
+    private void error(String message) {
+        MainPage.get().getCommandPanel().addMessage(message, "RED", true);
+        SoundUtils.getInstance().playErrorSound();
     }
 }
