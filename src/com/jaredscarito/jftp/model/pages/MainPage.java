@@ -113,19 +113,15 @@ public class MainPage extends GridPane {
         filesRow.setFillHeight(true);
         RowConstraints logRow = new RowConstraints();
         logRow.setVgrow(Priority.NEVER);
-        logRow.setPrefHeight(112);
-        logRow.setMinHeight(88);
-        logRow.setMaxHeight(140);
+        logRow.setPrefHeight(176);
+        logRow.setMinHeight(140);
+        logRow.setMaxHeight(240);
         getRowConstraints().addAll(loginRow, filesRow, logRow);
 
-        LoginPanel loginPanel = new LoginPanel("Login-Panel", "login-pane");
-        FilesPanel myFilesPanel = new FilesPanel("1", "myFiles-pane");
-        FilesPanel ftpFilesPanel = new FilesPanel("2", "ftpFilesPane");
-        CommandPanel commandPanel = new CommandPanel("", "");
-        this.loginPanel = loginPanel;
-        this.myFilesPanel = myFilesPanel;
-        this.ftpFilesPanel = ftpFilesPanel;
-        this.commandPanel = commandPanel;
+        this.loginPanel = new LoginPanel("Login-Panel", "login-pane");
+        this.myFilesPanel = new FilesPanel("1", "myFiles-pane");
+        this.ftpFilesPanel = new FilesPanel("2", "ftpFilesPane");
+        this.commandPanel = new CommandPanel("", "");
 
         GridPane.setHgrow(loginPanel, Priority.ALWAYS);
         loginPanel.setMaxWidth(Double.MAX_VALUE);

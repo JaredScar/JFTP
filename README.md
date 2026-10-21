@@ -12,13 +12,13 @@ JFTP is a desktop FTP client for moving files between this computer and a server
 
 **Connect.** Type a host, port, username, and password, then click **Connect**. The same button disconnects. The status chip in the header shows whether you are connected. An empty port uses your default (21 unless you change it in Preferences).
 
-**Browse both sides.** My Files is this computer, starting at your drives. FTP Files is the server, and it stays empty until you connect. Double-click a folder to open it. The path bar under each title shows where you are.
+**Browse both sides.** My computer is this PC, starting at your drives. Server stays empty until you connect, and saved presets show up there so you can jump back in. Double-click a folder to open it. The breadcrumb under each title shows where you are, and Filter narrows the list.
 
 **Transfer.** Select local files and click **Upload** to send them to the folder open on the server. Select remote files and click **Download** to save them into the folder open on this computer.
 
 **Manage files.** Each pane has buttons for up one level, home, refresh, new file or folder, and delete. The green outline marks the pane that menu commands apply to.
 
-**Keep a log.** The Activity panel records connect, transfer, and error messages.
+**Keep a log.** The bottom panel has Transfers and Log. Log records connect, transfer, and error messages, with a time and a level on each line.
 
 ## Window guide
 
@@ -28,14 +28,14 @@ JFTP is a desktop FTP client for moving files between this computer and a server
 | New | Create a file or folder in the open directory |
 | Delete | Remove the selection, after a confirmation if that setting is on |
 | Upload / Download | Send the selection to the other pane's current folder |
+| Filter | Show only names that match what you type |
 | Right-click | Copy, paste, rename, and upload or download |
 
-### Menus
+### Header
 
-- **JFTP** holds Preferences and Exit. Preferences sets the default port and whether delete asks first.
-- **Tasks** repeats create, rename, delete, upload, download, and refresh for the outlined pane.
+- **Transfers** switches the bottom panel to the transfer list.
 - **Presets** saves the current host, port, and username. Passwords are not stored. Choosing a preset fills the fields so you only need to type the password and connect.
-- **Help** opens About and a link to the project page.
+- **Help** opens About, the project page, Preferences, and Exit. Preferences sets the default port and whether delete asks first.
 
 ## Run it
 

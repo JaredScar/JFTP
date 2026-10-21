@@ -5,8 +5,14 @@ import com.jaredscarito.jftp.controller.MainController;
 import com.jaredscarito.jftp.model.AppSettings;
 import com.jaredscarito.jftp.model.FTPConnect;
 import com.jaredscarito.jftp.model.PaneFile;
+import com.jaredscarito.jftp.model.PresetStore;
 import com.jaredscarito.jftp.model.pages.MainPage;
 import com.jaredscarito.jftp.view.UiDialogs;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -23,8 +29,13 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.RowConstraints;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
+import javafx.scene.text.TextAlignment;
+import javafx.util.Callback;
+
+import java.util.function.Predicate;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.net.ftp.FTPFile;
 
@@ -86,85 +97,117 @@ public class FilesPanel extends Panel {
     }
 
     private void setupMyCurrentDirectory() {
-        tableView.getItems().clear();
-        for (File file : new File(MainPage.get().getMyCurrentDirectory()).listFiles()) {
-            String fileSize = "";
-            if (!file.isDirectory()) {
-                fileSize = MainController.humanReadableByteCount((file.length()), true);
-            }
-            FileTime lastModified = null;
-            try {
-                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
-            } catch (IOException ex) {
-            }
-            if (lastModified != null) {
-                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                tableView.getItems().add(new PaneFile(getIconImageView(file), file.getName(), fileSize, dateFormat.format(lastModified.toMillis())));
-            } else {
-                tableView.getItems().add(new PaneFile(getIconImageView(file), file.getName(), fileSize, "N/A"));
+        allFiles.clear();
+        addParentRow();
+        File[] listed = new File(MainPage.get().getMyCurrentDirectory()).listFiles();
+        if (listed != null) {
+            for (File file : listed) {
+                String fileSize = file.isDirectory() ? "—" : MainController.humanReadableByteCount(file.length(), true);
+                String when = "—";
+                try {
+                    FileTime lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
+                    if (lastModified != null) {
+                        when = stamp(lastModified.toMillis());
+                    }
+                } catch (IOException ex) {
+                }
+                allFiles.add(new PaneFile(getIconImageView(file), file.getName(), fileSize, when));
             }
         }
-        this.currentDirectoryField.setText(MainPage.get().getMyCurrentDirectory());
+        paintLocation();
     }
     private void setupMyRootDirectory() {
-        tableView.getItems().clear();
-        for(File file : File.listRoots()) {
+        allFiles.clear();
+        for (File file : File.listRoots()) {
             String fileSize = MainController.humanReadableByteCount((file.getTotalSpace() - file.getFreeSpace()), true);
-            FileTime lastModified = null;
+            String when = "—";
             try {
-                lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
-            } catch (IOException ex) {}
-            if(lastModified !=null) {
-                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                tableView.getItems().add(new PaneFile(getIconImageView(file), file.getAbsolutePath(), fileSize, dateFormat.format(lastModified.toMillis())));
-            } else {
-                tableView.getItems().add(new PaneFile(getIconImageView(file), file.getAbsolutePath(), fileSize, "N/A"));
+                FileTime lastModified = Files.getLastModifiedTime(Paths.get(file.getAbsolutePath()));
+                if (lastModified != null) {
+                    when = stamp(lastModified.toMillis());
+                }
+            } catch (IOException ex) {
             }
+            allFiles.add(new PaneFile(getIconImageView(file), file.getAbsolutePath(), fileSize, when));
         }
         MainPage.get().setMyCurrentDirectory("ROOT1337");
-        this.currentDirectoryField.setText("/");
+        paintLocation();
     }
     private void setupFTPRootDirectory() {
-        tableView.getItems().clear();
+        allFiles.clear();
         FTPConnect connection = MainPage.get().getLoginPanel().getConnection();
-        for (FTPFile file : connection.getFiles()) {
-            ftpFileSetup(file);
+        if (connection != null) {
+            FTPFile[] files = connection.getFiles();
+            if (files != null) {
+                for (FTPFile file : files) {
+                    ftpFileSetup(file);
+                }
+            }
         }
         MainPage.get().setFtpCurrentDirectory("ROOT1337");
-        this.currentDirectoryField.setText("");
+        paintLocation();
     }
     private void ftpFileSetup(FTPFile file) {
-        String name = file.getName();
-        String size = MainController.humanReadableByteCount(file.getSize(), true);
-        DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-        String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
-        ImageView icon;
-        if(file.isDirectory()) {
-            icon = new ImageView(new Image("com/jaredscarito/jftp/resources/ftp-folder-icon.png"));
-            icon.setFitWidth(15);
-            icon.setFitHeight(15);
-        } else {
-            // It's a file
-            icon = new ImageView(new Image("com/jaredscarito/jftp/resources/ftp-file-icon.png"));
-            icon.setFitWidth(15);
-            icon.setFitHeight(15);
+        if (file == null || file.getName() == null || ".".equals(file.getName()) || "..".equals(file.getName())) {
+            return;
         }
-        MainPage.get().getFtpFilesPanel().getTableView().getItems().add(new PaneFile(icon, name, size, lastModified));
+        String name = file.getName();
+        String size = file.isDirectory() ? "—" : MainController.humanReadableByteCount(file.getSize(), true);
+        String lastModified = "—";
+        if (file.getTimestamp() != null) {
+            lastModified = stamp(file.getTimestamp().getTimeInMillis());
+        }
+        ImageView icon = new ImageView(new Image(file.isDirectory()
+                ? "com/jaredscarito/jftp/resources/ftp-folder-icon.png"
+                : "com/jaredscarito/jftp/resources/ftp-file-icon.png"));
+        icon.setFitWidth(16);
+        icon.setFitHeight(16);
+        allFiles.add(new PaneFile(icon, name, size, lastModified));
     }
     private void setupFTPCurrentDirectory() {
-        tableView.getItems().clear();
+        allFiles.clear();
+        addParentRow();
         FTPConnect connection = MainPage.get().getLoginPanel().getConnection();
         try {
-            FTPFile[] files = connection.getClient().listFiles(MainPage.get().getFtpCurrentDirectory());
-            for(FTPFile file : files) {
-                ftpFileSetup(file);
+            if (connection != null && connection.getClient() != null) {
+                FTPFile[] files = connection.getClient().listFiles(MainPage.get().getFtpCurrentDirectory());
+                if (files != null) {
+                    for (FTPFile file : files) {
+                        ftpFileSetup(file);
+                    }
+                }
             }
-            this.currentDirectoryField.setText(MainPage.get().getFtpCurrentDirectory());
-        } catch (IOException e) {}
+        } catch (IOException e) {
+        }
+        paintLocation();
+    }
+
+    private void addParentRow() {
+        ImageView icon = new ImageView(new Image("com/jaredscarito/jftp/resources/ftp-folder-icon.png"));
+        icon.setFitWidth(16);
+        icon.setFitHeight(16);
+        allFiles.add(new PaneFile(icon, "..", "—", ""));
+    }
+
+    private String stamp(long millis) {
+        Date when = new Date(millis);
+        return new SimpleDateFormat("MMM d, yyyy").format(when) + "\n" + new SimpleDateFormat("HH:mm").format(when);
     }
 
     private TableView tableView;
-    private TextField currentDirectoryField;
+    private ObservableList<PaneFile> allFiles;
+    private FilteredList<PaneFile> filteredFiles;
+    private TextField filterField;
+    private HBox breadcrumb;
+    private Label pathLabel;
+    private Label countLabel;
+    private Label hintLabel;
+    private Label offlineBadge;
+    private Region paneDot;
+    private VBox emptyState;
+    private VBox presetCards;
+    private CheckBox selectAllBox;
+    private boolean refreshingChecks;
 
     private enum FileType {
         CLIENT,
@@ -175,6 +218,7 @@ public class FilesPanel extends Panel {
 
     @Override
     public void init() {
+        allFiles = FXCollections.observableArrayList();
         getStyleClass().add("files-card");
         setPadding(new Insets(10, 12, 12, 12));
         setVgap(8);
@@ -191,46 +235,182 @@ public class FilesPanel extends Panel {
         RowConstraints tableRow = new RowConstraints();
         tableRow.setVgrow(Priority.ALWAYS);
         tableRow.setFillHeight(true);
-        getRowConstraints().addAll(headerRow, pathRow, tableRow);
+        RowConstraints footRow = new RowConstraints();
+        footRow.setVgrow(Priority.NEVER);
+        getRowConstraints().addAll(headerRow, pathRow, tableRow, footRow);
 
-        Label myFilesLabel = new Label("My Files");
-        if(!getName().equals("1")) {
-            myFilesLabel.setText("FTP Files");
-        }
+        Label myFilesLabel = new Label(isLocal() ? "My computer" : "Server");
         myFilesLabel.getStyleClass().add("pane-title");
         TableView tableView = new TableView();
         this.tableView = tableView;
-        TableColumn iconCol = new TableColumn("");
-        iconCol.setCellValueFactory(new PropertyValueFactory<>("icon"));
-        iconCol.setPrefWidth(44);
-        iconCol.setMinWidth(44);
-        iconCol.setMaxWidth(44);
-        iconCol.setResizable(false);
-        TableColumn fileNamesCol = new TableColumn("Filename");
+        filteredFiles = new FilteredList<PaneFile>(allFiles, new Predicate<PaneFile>() {
+            @Override
+            public boolean test(PaneFile file) {
+                return matchesFilter(file);
+            }
+        });
+        tableView.setItems(filteredFiles);
+
+        selectAllBox = new CheckBox();
+        selectAllBox.setFocusTraversable(false);
+        selectAllBox.setOnAction(event -> {
+            if (selectAllBox.isSelected()) {
+                tableView.getSelectionModel().selectAll();
+            } else {
+                tableView.getSelectionModel().clearSelection();
+            }
+            tableView.refresh();
+        });
+        TableColumn checkCol = new TableColumn("");
+        checkCol.setGraphic(selectAllBox);
+        checkCol.setSortable(false);
+        checkCol.setResizable(false);
+        checkCol.setPrefWidth(36);
+        checkCol.setMinWidth(36);
+        checkCol.setMaxWidth(42);
+        checkCol.setCellFactory(new Callback<TableColumn, TableCell>() {
+            @Override
+            public TableCell call(TableColumn column) {
+                return new TableCell() {
+                    private final CheckBox box = new CheckBox();
+                    {
+                        box.setFocusTraversable(false);
+                        box.setOnAction(event -> {
+                            if (getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
+                                return;
+                            }
+                            if (box.isSelected()) {
+                                getTableView().getSelectionModel().select(getIndex());
+                            } else {
+                                getTableView().getSelectionModel().clearSelection(getIndex());
+                            }
+                        });
+                    }
+                    @Override
+                    protected void updateItem(Object item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty) {
+                            setGraphic(null);
+                        } else {
+                            box.setSelected(getTableView().getSelectionModel().isSelected(getIndex()));
+                            setGraphic(box);
+                        }
+                    }
+                };
+            }
+        });
+
+        TableColumn fileNamesCol = new TableColumn("NAME");
         fileNamesCol.setCellValueFactory(new PropertyValueFactory<>("obj"));
-        fileNamesCol.setMinWidth(140);
-        TableColumn fileSizesCol = new TableColumn("Size");
+        fileNamesCol.setMinWidth(160);
+        fileNamesCol.setCellFactory(new Callback<TableColumn, TableCell>() {
+            @Override
+            public TableCell call(TableColumn column) {
+                return new TableCell() {
+                    @Override
+                    protected void updateItem(Object item, boolean empty) {
+                        super.updateItem(item, empty);
+                        setText(null);
+                        if (empty || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
+                            setGraphic(null);
+                            return;
+                        }
+                        Object row = getTableView().getItems().get(getIndex());
+                        if (!(row instanceof PaneFile)) {
+                            setGraphic(null);
+                            return;
+                        }
+                        PaneFile file = (PaneFile) row;
+                        if (file.getObj() instanceof Node && !(file.getObj() instanceof String)) {
+                            setGraphic((Node) file.getObj());
+                            return;
+                        }
+                        ImageView icon = file.getIcon();
+                        if (icon != null && icon.getParent() instanceof javafx.scene.layout.Pane) {
+                            ((javafx.scene.layout.Pane) icon.getParent()).getChildren().remove(icon);
+                        }
+                        Label name = new Label(file.getFilename() == null ? "" : file.getFilename());
+                        name.getStyleClass().add("file-name");
+                        HBox line = new HBox(8);
+                        line.setAlignment(Pos.CENTER_LEFT);
+                        if (icon != null) {
+                            line.getChildren().add(icon);
+                        }
+                        line.getChildren().add(name);
+                        setGraphic(line);
+                    }
+                };
+            }
+        });
+        TableColumn fileSizesCol = new TableColumn("SIZE");
         fileSizesCol.setCellValueFactory(new PropertyValueFactory<>("filesize"));
-        fileSizesCol.setPrefWidth(90);
+        fileSizesCol.setPrefWidth(88);
         fileSizesCol.setMinWidth(72);
-        TableColumn fileModified = new TableColumn("Last Modified");
+        TableColumn fileModified = new TableColumn("MODIFIED");
         fileModified.setCellValueFactory(new PropertyValueFactory<>("lastModified"));
-        fileModified.setPrefWidth(150);
-        fileModified.setMinWidth(130);
+        fileModified.setPrefWidth(140);
+        fileModified.setMinWidth(120);
+        fileModified.setCellFactory(new Callback<TableColumn, TableCell>() {
+            @Override
+            public TableCell call(TableColumn column) {
+                return new TableCell() {
+                    @Override
+                    protected void updateItem(Object item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null || item.toString().isEmpty()) {
+                            setText(null);
+                            setGraphic(null);
+                            return;
+                        }
+                        String text = item.toString();
+                        int split = text.indexOf('\n');
+                        if (split < 0) {
+                            setGraphic(null);
+                            setText(text);
+                            return;
+                        }
+                        Label date = new Label(text.substring(0, split));
+                        date.getStyleClass().add("file-date");
+                        Label time = new Label(text.substring(split + 1));
+                        time.getStyleClass().add("file-time");
+                        VBox lines = new VBox(0, date, time);
+                        lines.setAlignment(Pos.CENTER_LEFT);
+                        setText(null);
+                        setGraphic(lines);
+                    }
+                };
+            }
+        });
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        tableView.getColumns().addAll(iconCol, fileNamesCol, fileSizesCol, fileModified);
+        tableView.getColumns().addAll(checkCol, fileNamesCol, fileSizesCol, fileModified);
         tableView.getStyleClass().add("files-table");
-        tableView.setMinHeight(180);
+        tableView.setMinHeight(120);
         tableView.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-        Label empty = new Label(getName().equals("1") ? "This folder is empty" : "Connect to a server to browse remote files");
+        Label empty = new Label(isLocal() ? "This folder is empty" : "This folder is empty");
         empty.getStyleClass().add("empty-state");
         tableView.setPlaceholder(empty);
+        tableView.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<Object>() {
+            @Override
+            public void onChanged(Change<? extends Object> change) {
+                if (refreshingChecks) {
+                    return;
+                }
+                refreshingChecks = true;
+                Platform.runLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        tableView.refresh();
+                        refreshingChecks = false;
+                    }
+                });
+            }
+        });
         tableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         tableView.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> markActive());
 
         boolean mdl2 = Font.getFamilies().contains("Segoe MDL2 Assets");
         String[] glyphs = mdl2
-                ? new String[]{"\uE74A", "\uE80F", "\uE72C", "\uE710", "\uE74D"}
+                ? new String[]{"\uE74A", "\uE80F", "\uE72C", "\uE8F4", "\uE74D"}
                 : new String[]{"\u2191", "\u2302", "\u21BB", "+", "\u2715"};
         String[] tips = {"Up one level", "Home", "Refresh", "New file or folder", "Delete selected"};
         HBox iconsBox = new HBox(4);
@@ -276,6 +456,9 @@ public class FilesPanel extends Panel {
         }
         Button transferButton = new Button(isLocal() ? "Upload" : "Download");
         transferButton.setFocusTraversable(false);
+        Label transferGlyph = new Label(mdl2 ? (isLocal() ? "\uE898" : "\uE896") : (isLocal() ? "\u2191" : "\u2193"));
+        transferGlyph.getStyleClass().add(mdl2 ? "mdl2-glyph" : "tool-glyph");
+        transferButton.setGraphic(transferGlyph);
         transferButton.getStyleClass().addAll("pane-tool", "accent");
         transferButton.setTooltip(new Tooltip(isLocal() ? "Upload selected files" : "Download selected files"));
         transferButton.setOnAction(event -> {
@@ -287,22 +470,6 @@ public class FilesPanel extends Panel {
             }
         });
         iconsBox.getChildren().add(transferButton);
-        /**
-         * URL TEXTFIELD (USER)
-         */
-        TextField currentDirectoryField = new TextField("");
-        this.currentDirectoryField = currentDirectoryField;
-        currentDirectoryField.getStyleClass().add("path-field");
-        currentDirectoryField.setMaxWidth(Double.MAX_VALUE);
-        this.currentDirectoryField.setEditable(false);
-        /**
-         * USER CLIENT FTP VIEW FILES:
-         */
-        // Setup FileSystemView for user client
-        /**/
-        if(getName().equals("1")) {
-            setupMyRootDirectory();
-        }
         // Add ContextMenu for table
         ContextMenu cm = new ContextMenu();
         cm.getStyleClass().add("context-menu");
@@ -459,6 +626,10 @@ public class FilesPanel extends Panel {
                         if (pf == null || pf.getFilename() == null) {
                             return;
                         }
+                        if ("..".equals(pf.getFilename())) {
+                            goUp();
+                            return;
+                        }
                         if (getName().equals("1")) {
                             String temp;
                             if (!MainPage.get().getMyCurrentDirectory().equals("ROOT1337")) {
@@ -470,6 +641,8 @@ public class FilesPanel extends Panel {
                             if (file.isDirectory()) {
                                 MainPage.get().setMyCurrentDirectory(temp);
                                 setupMyCurrentDirectory();
+                            } else {
+                                uploadSelected();
                             }
                         } else {
                             try {
@@ -482,8 +655,8 @@ public class FilesPanel extends Panel {
                                 } else {
                                     files = MainPage.get().getLoginPanel().getConnection().getClient().listFiles(pf.getFilename());
                                 }
-                                if(files.length <= 1) {
-                                    // Is a file
+                                if (files == null || files.length <= 1) {
+                                    downloadSelected();
                                 } else {
                                     // Is a directory
                                     if(!MainPage.get().getFtpCurrentDirectory().equals("ROOT1337")) {
@@ -499,19 +672,334 @@ public class FilesPanel extends Panel {
                 }
             }
         });
+        buildChrome(myFilesLabel, iconsBox, mdl2);
+    }
+
+    private void buildChrome(Label title, HBox tools, boolean mdl2) {
+        paneDot = new Region();
+        paneDot.getStyleClass().add("pane-dot");
+        if (!isLocal()) {
+            paneDot.getStyleClass().add("pane-dot-off");
+        }
+        pathLabel = new Label(isLocal() ? "This PC" : "");
+        pathLabel.getStyleClass().add("pane-path");
+        pathLabel.setMaxWidth(280);
+        offlineBadge = new Label("offline");
+        offlineBadge.getStyleClass().add("offline-badge");
+        boolean remote = !isLocal();
+        offlineBadge.setVisible(remote);
+        offlineBadge.setManaged(remote);
+        pathLabel.setVisible(!remote);
+        pathLabel.setManaged(!remote);
+
         HBox header = new HBox(8);
         header.setAlignment(Pos.CENTER_LEFT);
-        header.getStyleClass().add("pane-header");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        header.getChildren().addAll(myFilesLabel, spacer, iconsBox);
-        setHgrow(header, Priority.ALWAYS);
-        setHgrow(currentDirectoryField, Priority.ALWAYS);
-        setVgrow(tableView, Priority.ALWAYS);
-        setHgrow(tableView, Priority.ALWAYS);
+        header.getChildren().addAll(paneDot, title, pathLabel, offlineBadge, spacer, tools);
+
+        breadcrumb = new HBox(2);
+        breadcrumb.setAlignment(Pos.CENTER_LEFT);
+
+        filterField = new TextField();
+        filterField.setPromptText("Filter");
+        filterField.getStyleClass().add("shell-field");
+        filterField.setPrefWidth(150);
+        Label search = new Label(mdl2 ? "\uE721" : "\u2315");
+        search.getStyleClass().add(mdl2 ? "mdl2-glyph" : "tool-glyph");
+        HBox filterShell = new HBox(6, search, filterField);
+        filterShell.setAlignment(Pos.CENTER_LEFT);
+        filterShell.getStyleClass().add("input-shell");
+        filterShell.setMinWidth(150);
+        filterShell.setPrefWidth(180);
+        filterShell.setMaxWidth(210);
+        filterField.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (filteredFiles != null) {
+                filteredFiles.setPredicate(new Predicate<PaneFile>() {
+                    @Override
+                    public boolean test(PaneFile file) {
+                        return matchesFilter(file);
+                    }
+                });
+            }
+            updateFooter();
+        });
+
+        Region navSpacer = new Region();
+        HBox.setHgrow(navSpacer, Priority.ALWAYS);
+        HBox navRow = new HBox(8, breadcrumb, navSpacer, filterShell);
+        navRow.setAlignment(Pos.CENTER_LEFT);
+
+        emptyState = buildEmptyState(mdl2);
+        StackPane body = new StackPane();
+        body.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        body.getChildren().add(tableView);
+        if (remote) {
+            body.getChildren().add(emptyState);
+            tableView.setVisible(false);
+            tableView.setManaged(false);
+        } else {
+            emptyState.setVisible(false);
+            emptyState.setManaged(false);
+        }
+        setVgrow(body, Priority.ALWAYS);
+        setHgrow(body, Priority.ALWAYS);
+
+        countLabel = new Label("—");
+        countLabel.getStyleClass().add("pane-foot");
+        hintLabel = new Label("");
+        hintLabel.getStyleClass().add("pane-hint");
+        Region footSpacer = new Region();
+        HBox.setHgrow(footSpacer, Priority.ALWAYS);
+        HBox footer = new HBox(12, countLabel, footSpacer, hintLabel);
+        footer.setAlignment(Pos.CENTER_LEFT);
+
         add(header, 0, 0);
-        add(currentDirectoryField, 0, 1);
-        add(tableView, 0, 2);
+        add(navRow, 0, 1);
+        add(body, 0, 2);
+        add(footer, 0, 3);
+
+        allFiles.addListener(new ListChangeListener<PaneFile>() {
+            @Override
+            public void onChanged(Change<? extends PaneFile> change) {
+                updateFooter();
+            }
+        });
+
+        if (isLocal()) {
+            setupMyRootDirectory();
+        } else {
+            reloadPresetCards();
+            paintLocation();
+        }
+    }
+
+    private VBox buildEmptyState(boolean mdl2) {
+        StackPane iconWrap = new StackPane();
+        iconWrap.getStyleClass().add("empty-icon");
+        Label icon = new Label(mdl2 ? "\uE968" : "\u25A1");
+        icon.getStyleClass().add(mdl2 ? "mdl2-glyph" : "tool-glyph");
+        iconWrap.getChildren().add(icon);
+
+        Label heading = new Label("No server connected");
+        heading.getStyleClass().add("empty-title");
+        Label copy = new Label("Enter your server details above, or jump straight into a saved server.");
+        copy.setWrapText(true);
+        copy.setTextAlignment(TextAlignment.CENTER);
+        copy.setAlignment(Pos.CENTER);
+        copy.setMaxWidth(380);
+        copy.getStyleClass().add("empty-copy");
+
+        presetCards = new VBox(8);
+        presetCards.setAlignment(Pos.CENTER);
+        presetCards.setMaxWidth(460);
+        presetCards.setFillWidth(true);
+
+        Button manual = new Button("Enter details manually");
+        manual.setFocusTraversable(false);
+        manual.getStyleClass().add("text-link");
+        manual.setOnAction(event -> {
+            if (MainPage.get() != null) {
+                MainPage.get().getLoginPanel().focusHost();
+            }
+        });
+
+        VBox empty = new VBox(12, iconWrap, heading, copy, presetCards, manual);
+        empty.setAlignment(Pos.CENTER);
+        empty.setMaxWidth(520);
+        empty.setPadding(new Insets(16, 20, 16, 20));
+        return empty;
+    }
+
+    public void reloadPresetCards() {
+        if (presetCards == null) {
+            return;
+        }
+        presetCards.getChildren().clear();
+        for (final PresetStore.Preset preset : PresetStore.load()) {
+            Label badge = new Label("FTP");
+            badge.getStyleClass().add("proto-badge");
+            Label name = new Label(preset.name);
+            name.getStyleClass().add("preset-name");
+            Label host = new Label(preset.host);
+            host.getStyleClass().add("preset-host");
+            VBox text = new VBox(2, name, host);
+            HBox.setHgrow(text, Priority.ALWAYS);
+            Button connect = new Button("Connect");
+            connect.setFocusTraversable(false);
+            connect.getStyleClass().add("preset-connect");
+            connect.setOnAction(event -> MainPage.get().getLoginPanel().usePreset(preset.host, preset.port, preset.username));
+            HBox card = new HBox(10, badge, text, connect);
+            card.setAlignment(Pos.CENTER_LEFT);
+            card.setMaxWidth(Double.MAX_VALUE);
+            card.getStyleClass().add("preset-card");
+            presetCards.getChildren().add(card);
+        }
+    }
+
+    public void setRemoteConnected(boolean connected, String host) {
+        if (isLocal() || offlineBadge == null) {
+            return;
+        }
+        if (connected) {
+            offlineBadge.setVisible(false);
+            offlineBadge.setManaged(false);
+            pathLabel.setText(host == null ? "" : host);
+            pathLabel.setVisible(true);
+            pathLabel.setManaged(true);
+            paneDot.getStyleClass().remove("pane-dot-off");
+        } else {
+            offlineBadge.setText("offline");
+            offlineBadge.setVisible(true);
+            offlineBadge.setManaged(true);
+            pathLabel.setVisible(false);
+            pathLabel.setManaged(false);
+            if (!paneDot.getStyleClass().contains("pane-dot-off")) {
+                paneDot.getStyleClass().add("pane-dot-off");
+            }
+        }
+        syncEmpty();
+    }
+
+    private void syncEmpty() {
+        if (isLocal() || emptyState == null) {
+            return;
+        }
+        boolean disconnected = connection() == null;
+        emptyState.setVisible(disconnected);
+        emptyState.setManaged(disconnected);
+        tableView.setVisible(!disconnected);
+        tableView.setManaged(!disconnected);
+    }
+
+    private boolean matchesFilter(PaneFile file) {
+        if (filterField == null || filterField.getText() == null || filterField.getText().trim().isEmpty()) {
+            return true;
+        }
+        String name = file == null ? null : file.getFilename();
+        return name != null && name.toLowerCase().contains(filterField.getText().trim().toLowerCase());
+    }
+
+    private void updateFooter() {
+        if (countLabel == null || hintLabel == null) {
+            return;
+        }
+        if (!isLocal() && connection() == null) {
+            countLabel.setText("—");
+            hintLabel.setText("");
+            return;
+        }
+        int count = 0;
+        if (filteredFiles != null) {
+            for (PaneFile file : filteredFiles) {
+                if (file.getFilename() != null && !"..".equals(file.getFilename())) {
+                    count++;
+                }
+            }
+        }
+        countLabel.setText(count + (count == 1 ? " item" : " items"));
+        hintLabel.setText(isLocal() ? "Double-click a file to upload" : "Double-click a file to download");
+    }
+
+    private void paintLocation() {
+        if (breadcrumb == null) {
+            return;
+        }
+        breadcrumb.getChildren().clear();
+        if (isLocal()) {
+            if (isRoot()) {
+                addCrumb("This PC", true, null);
+                pathLabel.setText("This PC");
+            } else {
+                addCrumb("This PC", false, new Runnable() {
+                    @Override
+                    public void run() {
+                        setupMyRootDirectory();
+                    }
+                });
+                File current = new File(MainPage.get().getMyCurrentDirectory());
+                java.util.List<File> chain = new ArrayList<File>();
+                File cursor = current;
+                while (cursor != null) {
+                    chain.add(0, cursor);
+                    cursor = cursor.getParentFile();
+                }
+                for (int i = 0; i < chain.size(); i++) {
+                    final File target = chain.get(i);
+                    boolean last = i == chain.size() - 1;
+                    addCrumbSeparator();
+                    String label = target.getName();
+                    if (label == null || label.isEmpty()) {
+                        label = target.getPath();
+                    }
+                    addCrumb(label, last, last ? null : new Runnable() {
+                        @Override
+                        public void run() {
+                            MainPage.get().setMyCurrentDirectory(target.getAbsolutePath());
+                            setupMyCurrentDirectory();
+                        }
+                    });
+                }
+                pathLabel.setText(current.getAbsolutePath());
+            }
+        } else if (connection() == null || isRoot()) {
+            addCrumb("/", true, null);
+        } else {
+            final String full = MainPage.get().getFtpCurrentDirectory();
+            addCrumb("/", false, new Runnable() {
+                @Override
+                public void run() {
+                    setupFTPRootDirectory();
+                }
+            });
+            java.util.List<String> parts = new ArrayList<String>();
+            if (full != null) {
+                for (String part : full.split("/")) {
+                    if (!part.isEmpty()) {
+                        parts.add(part);
+                    }
+                }
+            }
+            String built = "";
+            for (int i = 0; i < parts.size(); i++) {
+                built = built.isEmpty() ? parts.get(i) : built + "/" + parts.get(i);
+                final String target = built;
+                boolean last = i == parts.size() - 1;
+                addCrumbSeparator();
+                addCrumb(parts.get(i), last, last ? null : new Runnable() {
+                    @Override
+                    public void run() {
+                        MainPage.get().setFtpCurrentDirectory(target);
+                        setupFTPCurrentDirectory();
+                    }
+                });
+            }
+        }
+        updateFooter();
+        syncEmpty();
+    }
+
+    private void addCrumb(String text, boolean current, final Runnable action) {
+        Button crumb = new Button(text);
+        crumb.setMnemonicParsing(false);
+        crumb.setFocusTraversable(false);
+        crumb.getStyleClass().add("crumb");
+        if (current) {
+            crumb.getStyleClass().add("crumb-current");
+        }
+        if (action != null) {
+            crumb.setOnAction(event -> {
+                markActive();
+                action.run();
+            });
+        }
+        breadcrumb.getChildren().add(crumb);
+    }
+
+    private void addCrumbSeparator() {
+        Label separator = new Label("\u203a");
+        separator.getStyleClass().add("crumb-sep");
+        breadcrumb.getChildren().add(separator);
     }
 
     public TableView getTableView() {
@@ -529,16 +1017,15 @@ public class FilesPanel extends Panel {
     }
 
     public void clearRemote() {
-        tableView.getItems().clear();
+        allFiles.clear();
         MainPage.get().setFtpCurrentDirectory("ROOT1337");
-        if (currentDirectoryField != null) {
-            currentDirectoryField.setText("");
-        }
+        setRemoteConnected(false, null);
+        paintLocation();
     }
 
     public void refresh() {
         if (!isLocal() && connection() == null) {
-            error("Connect to an FTP server first.");
+            syncEmpty();
             return;
         }
         if (isLocal()) {
@@ -556,7 +1043,6 @@ public class FilesPanel extends Panel {
 
     public void goHome() {
         if (!isLocal() && connection() == null) {
-            error("Connect to an FTP server first.");
             return;
         }
         if (isLocal()) {
@@ -583,7 +1069,6 @@ public class FilesPanel extends Panel {
             return;
         }
         if (connection() == null) {
-            error("Connect to an FTP server first.");
             return;
         }
         if (isRoot()) {
@@ -840,6 +1325,9 @@ public class FilesPanel extends Panel {
     }
 
     private FTPConnect connection() {
+        if (MainPage.get() == null || MainPage.get().getLoginPanel() == null) {
+            return null;
+        }
         return MainPage.get().getLoginPanel().getConnection();
     }
 
@@ -864,7 +1352,7 @@ public class FilesPanel extends Panel {
         for (Object item : new ArrayList<Object>(tableView.getSelectionModel().getSelectedItems())) {
             if (item instanceof PaneFile) {
                 PaneFile file = (PaneFile) item;
-                if (file.getFilename() != null && !file.getFilename().trim().isEmpty()) {
+                if (file.getFilename() != null && !file.getFilename().trim().isEmpty() && !"..".equals(file.getFilename())) {
                     files.add(file);
                 }
             }

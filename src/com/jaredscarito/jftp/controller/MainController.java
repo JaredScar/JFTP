@@ -3,7 +3,6 @@ package com.jaredscarito.jftp.controller;
 import com.jaredscarito.jftp.model.AppSettings;
 import com.jaredscarito.jftp.model.PresetStore;
 import com.jaredscarito.jftp.model.pages.MainPage;
-import com.jaredscarito.jftp.model.pages.panels.FilesPanel;
 import com.jaredscarito.jftp.model.pages.panels.LoginPanel;
 import com.jaredscarito.jftp.view.UiDialogs;
 import javafx.application.Application;
@@ -17,9 +16,9 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
@@ -30,6 +29,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
@@ -47,8 +47,8 @@ public class MainController extends Application {
         Scene mainScene = getMainScene();
         mainScene.getStylesheets().add("com/jaredscarito/jftp/resources/style.css");
         primaryStage.setTitle("JFTP");
-        primaryStage.setMinWidth(980);
-        primaryStage.setMinHeight(640);
+        primaryStage.setMinWidth(1100);
+        primaryStage.setMinHeight(700);
         applyWindowIcon(primaryStage);
         primaryStage.setScene(mainScene);
         primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
@@ -61,7 +61,7 @@ public class MainController extends Application {
         primaryStage.show();
     }
 
-    private Menu presetsMenu;
+    private MenuButton presetsMenu;
 
     private void applyWindowIcon(Stage stage) {
         ClassLoader loader = getClass().getClassLoader();
@@ -108,10 +108,15 @@ public class MainController extends Application {
 
     public Scene getMainScene() {
         VBox root = new VBox();
-        Scene mainScene = new Scene(root, 1180, 760);
+        Scene mainScene = new Scene(root, 1320, 840);
 
         Label status = new Label("Not connected");
         status.getStyleClass().addAll("status-pill", "status-off");
+        Region dot = new Region();
+        dot.getStyleClass().add("status-dot");
+        status.setGraphic(dot);
+        status.setContentDisplay(ContentDisplay.LEFT);
+        status.setGraphicTextGap(8);
         MainPage.setStatusLabel(status);
 
         HBox header = buildHeader();
@@ -127,11 +132,23 @@ public class MainController extends Application {
         return mainScene;
     }
 
-    private MenuBar buildMenuBar() {
-        MenuBar menuBar = new MenuBar();
-        menuBar.getStyleClass().add("header-menu");
+    private HBox buildMenuBar() {
+        boolean mdl2 = Font.getFamilies().contains("Segoe MDL2 Assets");
+        Button transfers = navButton("Transfers", mdl2 ? "\uE895" : "\u21C4", mdl2);
+        transfers.setOnAction(event -> {
+            if (MainPage.get() != null) {
+                MainPage.get().getCommandPanel().showTransfers();
+            }
+        });
 
-        Menu jftpMenu = new Menu("JFTP");
+        presetsMenu = navMenu("Presets", mdl2 ? "\uE734" : "\u2606", mdl2);
+        rebuildPresets();
+
+        MenuButton helpMenu = navMenu("Help", mdl2 ? "\uE897" : "?", mdl2);
+        MenuItem about = new MenuItem("About");
+        about.setOnAction(event -> showAbout());
+        MenuItem support = new MenuItem("Support");
+        support.setOnAction(event -> showSupport());
         MenuItem preferences = new MenuItem("Preferences");
         preferences.setOnAction(event -> showPreferences());
         MenuItem exit = new MenuItem("Exit");
@@ -140,39 +157,34 @@ public class MainController extends Application {
             Platform.exit();
             System.exit(0);
         });
-        jftpMenu.getItems().addAll(preferences, new SeparatorMenuItem(), exit);
+        helpMenu.getItems().addAll(about, support, new SeparatorMenuItem(), preferences, new SeparatorMenuItem(), exit);
 
-        Menu tasksMenu = new Menu("Tasks");
-        MenuItem create = new MenuItem("Create");
-        create.setOnAction(event -> activePanel().promptCreate());
-        MenuItem edit = new MenuItem("Rename");
-        edit.setOnAction(event -> activePanel().promptRename());
-        MenuItem delete = new MenuItem("Delete");
-        delete.setOnAction(event -> activePanel().deleteSelected());
-        MenuItem upload = new MenuItem("Upload");
-        upload.setOnAction(event -> MainPage.get().getMyFilesPanel().uploadSelected());
-        MenuItem download = new MenuItem("Download");
-        download.setOnAction(event -> MainPage.get().getFtpFilesPanel().downloadSelected());
-        MenuItem refresh = new MenuItem("Refresh");
-        refresh.setOnAction(event -> activePanel().refresh());
-        tasksMenu.getItems().addAll(create, edit, delete, new SeparatorMenuItem(), upload, download, new SeparatorMenuItem(), refresh);
-
-        presetsMenu = new Menu("Presets");
-        rebuildPresets();
-
-        Menu helpMenu = new Menu("Help");
-        MenuItem about = new MenuItem("About");
-        about.setOnAction(event -> showAbout());
-        MenuItem support = new MenuItem("Support");
-        support.setOnAction(event -> showSupport());
-        helpMenu.getItems().addAll(about, support);
-
-        menuBar.getMenus().addAll(jftpMenu, tasksMenu, presetsMenu, helpMenu);
-        return menuBar;
+        HBox nav = new HBox(2, transfers, presetsMenu, helpMenu);
+        nav.setAlignment(Pos.CENTER_RIGHT);
+        return nav;
     }
 
-    private FilesPanel activePanel() {
-        return MainPage.get().getActiveFilesPanel();
+    private Button navButton(String text, String glyph, boolean mdl2) {
+        Button button = new Button(text);
+        button.setFocusTraversable(false);
+        button.getStyleClass().add("nav-button");
+        button.setGraphic(navGlyph(glyph, mdl2));
+        button.setContentDisplay(ContentDisplay.LEFT);
+        return button;
+    }
+
+    private MenuButton navMenu(String text, String glyph, boolean mdl2) {
+        MenuButton button = new MenuButton(text);
+        button.setFocusTraversable(false);
+        button.getStyleClass().add("nav-menu");
+        button.setGraphic(navGlyph(glyph, mdl2));
+        return button;
+    }
+
+    private Label navGlyph(String glyph, boolean mdl2) {
+        Label label = new Label(glyph);
+        label.getStyleClass().add(mdl2 ? "mdl2-glyph" : "tool-glyph");
+        return label;
     }
 
     private void rebuildPresets() {
@@ -200,6 +212,9 @@ public class MainController extends Application {
                 MainPage.get().getCommandPanel().addMessage("Loaded preset " + preset.name + ". Enter the password, then connect.", "#64748b", false);
             });
             presetsMenu.getItems().add(item);
+        }
+        if (MainPage.get() != null && MainPage.get().getFtpFilesPanel() != null) {
+            MainPage.get().getFtpFilesPanel().reloadPresetCards();
         }
     }
 
@@ -299,7 +314,7 @@ public class MainController extends Application {
         Label summary = new Label("A desktop client for moving files between this computer and an FTP server.");
         summary.setWrapText(true);
         summary.setMaxWidth(360);
-        Label detail = new Label("Select a pane, then use the command bar or the Tasks menu to create, rename, delete, upload, and download.");
+        Label detail = new Label("Browse both sides, then upload or download the files you select. Saved servers live under Presets.");
         detail.setWrapText(true);
         detail.setMaxWidth(360);
         detail.getStyleClass().add("command-hint");

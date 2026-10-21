@@ -2,35 +2,39 @@ package com.jaredscarito.jftp.model.pages.panels;
 
 import com.jaredscarito.jftp.model.AppSettings;
 import com.jaredscarito.jftp.model.FTPConnect;
-import com.jaredscarito.jftp.model.PaneFile;
 import com.jaredscarito.jftp.model.pages.MainPage;
-import javafx.event.EventHandler;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
-import org.apache.commons.net.ftp.FTPFile;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.List;
 
 public class LoginPanel extends Panel {
     private String name;
+    private ComboBox<String> protocolBox;
     private TextField hostField;
     private TextField portField;
     private TextField userField;
-    private TextField passField;
+    private PasswordField passField;
+    private TextField visiblePass;
     private FTPConnect connection;
     private Button connectButton;
+    private Label connectGlyph;
+
     public LoginPanel() {
         init();
     }
@@ -52,154 +56,233 @@ public class LoginPanel extends Panel {
 
     @Override
     public void init() {
-        setPadding(new Insets(10, 12, 10, 12));
-        setHgap(8);
+        setPadding(new Insets(2, 2, 0, 2));
+        setHgap(10);
         setMaxWidth(Double.MAX_VALUE);
-        setAlignment(Pos.CENTER_LEFT);
+        setAlignment(Pos.BOTTOM_LEFT);
 
+        boolean mdl2 = Font.getFamilies().contains("Segoe MDL2 Assets");
+
+        ColumnConstraints protocolCol = new ColumnConstraints();
+        protocolCol.setMinWidth(108);
+        protocolCol.setPrefWidth(118);
+        protocolCol.setMaxWidth(140);
         ColumnConstraints hostCol = new ColumnConstraints();
         hostCol.setHgrow(Priority.ALWAYS);
         hostCol.setFillWidth(true);
-        hostCol.setMinWidth(160);
+        hostCol.setMinWidth(180);
         ColumnConstraints portCol = new ColumnConstraints();
-        portCol.setMinWidth(76);
+        portCol.setMinWidth(72);
         portCol.setPrefWidth(84);
         portCol.setMaxWidth(100);
         ColumnConstraints userCol = new ColumnConstraints();
         userCol.setHgrow(Priority.SOMETIMES);
         userCol.setFillWidth(true);
-        userCol.setMinWidth(120);
-        userCol.setPrefWidth(160);
+        userCol.setMinWidth(130);
+        userCol.setPrefWidth(168);
         ColumnConstraints passCol = new ColumnConstraints();
         passCol.setHgrow(Priority.SOMETIMES);
         passCol.setFillWidth(true);
-        passCol.setMinWidth(120);
-        passCol.setPrefWidth(160);
+        passCol.setMinWidth(140);
+        passCol.setPrefWidth(180);
         ColumnConstraints buttonCol = new ColumnConstraints();
-        buttonCol.setMinWidth(118);
-        buttonCol.setPrefWidth(128);
-        getColumnConstraints().addAll(hostCol, portCol, userCol, passCol, buttonCol);
+        buttonCol.setMinWidth(124);
+        buttonCol.setPrefWidth(132);
+        getColumnConstraints().addAll(protocolCol, hostCol, portCol, userCol, passCol, buttonCol);
 
-        TextField hostField = new TextField();
-        hostField.setPromptText("Host");
-        hostField.setMaxWidth(Double.MAX_VALUE);
-        hostField.getStyleClass().add("login-textfield");
-        add(hostField, 0, 0);
-        TextField portField = new TextField(Integer.toString(AppSettings.defaultPort()));
-        portField.setPromptText("Port");
-        portField.setMaxWidth(Double.MAX_VALUE);
-        portField.getStyleClass().add("login-textfield");
-        add(portField, 1, 0);
-        TextField userField = new TextField();
-        userField.setPromptText("Username");
-        userField.setMaxWidth(Double.MAX_VALUE);
-        userField.getStyleClass().add("login-textfield");
-        add(userField, 2, 0);
-        PasswordField passField = new PasswordField();
+        protocolBox = new ComboBox<String>();
+        protocolBox.getItems().addAll("FTP", "SFTP", "FTPS");
+        protocolBox.setValue("FTP");
+        protocolBox.setMaxWidth(Double.MAX_VALUE);
+        protocolBox.getStyleClass().add("protocol-box");
+
+        hostField = new TextField();
+        hostField.setPromptText("ftp.example.com");
+        hostField.getStyleClass().add("shell-field");
+        HBox hostShell = fieldShell(mdl2 ? "\uE753" : "@", hostField, mdl2);
+
+        portField = new TextField(Integer.toString(AppSettings.defaultPort()));
+        portField.setPromptText("21");
+        portField.getStyleClass().add("shell-field");
+        HBox portShell = fieldShell(null, portField, mdl2);
+
+        userField = new TextField();
+        userField.setPromptText("anonymous");
+        userField.getStyleClass().add("shell-field");
+        HBox userShell = fieldShell(mdl2 ? "\uE77B" : "@", userField, mdl2);
+
+        passField = new PasswordField();
         passField.setPromptText("Password");
-        passField.setMaxWidth(Double.MAX_VALUE);
-        passField.getStyleClass().add("login-textfield");
-        add(passField, 3, 0);
-        Button connectBtn = new Button("Connect");
-        connectBtn.setMaxWidth(Double.MAX_VALUE);
-        connectBtn.setPrefHeight(32);
-        connectBtn.getStyleClass().add("login-button");
-        add(connectBtn, 4, 0);
-        this.connectButton = connectBtn;
-        this.hostField = hostField;
-        this.portField = portField;
-        this.userField = userField;
-        this.passField = passField;
-        this.connectButton.getStyleClass().add("connect-btn");
-        this.connectButton.setOnMouseClicked(new EventHandler<MouseEvent>() {
-            @Override
-            public void handle(MouseEvent event) {
-                if(event.getButton() == MouseButton.PRIMARY) {
-                    if (connection == null) {
-                        String host = hostField.getText().trim();
-                        if (host.isEmpty()) {
-                            MainPage.get().getCommandPanel().addMessage("ERROR: Enter a host before connecting.", "RED", true);
-                            return;
-                        }
-                        int port = AppSettings.defaultPort();
-                        String portText = portField.getText().trim();
-                        if (!portText.isEmpty()) {
-                            try {
-                                port = Integer.parseInt(portText);
-                            } catch (NumberFormatException ex) {
-                                MainPage.get().getCommandPanel().addMessage("ERROR: Port must be a number.", "RED", true);
-                                return;
-                            }
-                        }
-                        if (port < 1 || port > 65535) {
-                            MainPage.get().getCommandPanel().addMessage("ERROR: Port must be between 1 and 65535.", "RED", true);
-                            return;
-                        }
-                        String username = userField.getText();
-                        String pass = passField.getText();
-                        MainPage.get().getCommandPanel().addMessage("Connection: Attempting to connect to " + host + ":" + port, "GRAY", true); // CommandMessage
-                        connection = new FTPConnect(host, port, username, pass);
-                        if (connection.connect()) {
-                            FTPFile[] remoteFiles = connection.getFiles();
-                            if (remoteFiles == null) {
-                                remoteFiles = new FTPFile[0];
-                            }
-                            for (FTPFile file : remoteFiles) {
-                                if (file == null || file.getName() == null || file.getTimestamp() == null) {
-                                    continue;
-                                }
-                                String name = file.getName();
-                                String size = humanReadableByteCount(file.getSize(), true);
-                                DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                                String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
-                                ImageView icon;
-                                if(file.isDirectory()) {
-                                    icon = new ImageView(new Image("com/jaredscarito/jftp/resources/ftp-folder-icon.png"));
-                                    icon.setFitWidth(15);
-                                    icon.setFitHeight(15);
-                                } else {
-                                    // It's a file
-                                    icon = new ImageView(new Image("com/jaredscarito/jftp/resources/ftp-file-icon.png"));
-                                    icon.setFitWidth(15);
-                                    icon.setFitHeight(15);
-                                }
-                                MainPage.get().getFtpFilesPanel().getTableView().getItems().add(new PaneFile(icon, name, size, lastModified));
-                            }
-                            /** /
-                             for(FTPFile file : connection.getDirectories()) {
-                             String name = file.getName();
-                             String size = humanReadableByteCount(file.getSize(), true);
-                             DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy | hh:mm");
-                             String lastModified = dateFormat.format(file.getTimestamp().getTimeInMillis());
-                             ftpFilesView.getItems().add(new PaneFile(name, size, lastModified));
-                             }
-                             /**/
-                            MainPage.get().getCommandPanel().addMessage("Connection: Attempting to connect to " + host + ":" + port +
-                                    " = SUCCESS", "GREEN", true); // CommandMessage
-                            connectButton.setText("Disconnect");
-                            if (!connectButton.getStyleClass().contains("is-connected")) {
-                                connectButton.getStyleClass().add("is-connected");
-                            }
-                            MainPage.setStatus("Connected to " + host, true);
-                        } else {
-                            MainPage.get().getCommandPanel().addMessage("ERROR: Failed to connect to " + host + ":" + port, "RED", true); // CommandMessage
-                            connection = null;
-                            MainPage.setStatus("Not connected", false);
-                        }
-                    } else {
-                        // It is the disconnect button
-                        MainPage.get().getCommandPanel().addMessage("Connection: Disconnected from FTP Server", "GRAY", false); // CommandMessage
-                        MainPage.get().getFtpFilesPanel().clearRemote();
-                        connection.disconnect();
-                        connection = null;
-                        connectButton.setText("Connect");
-                        connectButton.getStyleClass().remove("is-connected");
-                        MainPage.setStatus("Not connected", false);
-                    }
-                }
+        passField.getStyleClass().add("shell-field");
+        visiblePass = new TextField();
+        visiblePass.setPromptText("Password");
+        visiblePass.getStyleClass().add("shell-field");
+        visiblePass.setVisible(false);
+        visiblePass.setManaged(false);
+        passField.textProperty().bindBidirectional(visiblePass.textProperty());
+        StackPane passStack = new StackPane(passField, visiblePass);
+        HBox.setHgrow(passStack, Priority.ALWAYS);
+
+        Button eye = new Button();
+        eye.setFocusTraversable(false);
+        eye.getStyleClass().add("eye-button");
+        final Label eyeGlyph = glyph(mdl2 ? "\uE890" : "\u25CE", mdl2);
+        eye.setGraphic(eyeGlyph);
+        eye.setOnAction(event -> {
+            boolean reveal = !visiblePass.isVisible();
+            visiblePass.setVisible(reveal);
+            visiblePass.setManaged(reveal);
+            passField.setVisible(!reveal);
+            passField.setManaged(!reveal);
+            eyeGlyph.setText(mdl2 ? (reveal ? "\uE7B3" : "\uE890") : (reveal ? "\u25CF" : "\u25CE"));
+            if (reveal) {
+                visiblePass.requestFocus();
+            } else {
+                passField.requestFocus();
             }
         });
+        HBox passShell = new HBox(4, passStack, eye);
+        passShell.setAlignment(Pos.CENTER_LEFT);
+        passShell.getStyleClass().add("input-shell");
+        watchFocus(passShell, passField, visiblePass, eye);
+
+        connectGlyph = glyph(mdl2 ? "\uE703" : "\u2192", mdl2);
+        connectButton = new Button("Connect");
+        connectButton.setGraphic(connectGlyph);
+        connectButton.setContentDisplay(ContentDisplay.LEFT);
+        connectButton.setMaxWidth(Double.MAX_VALUE);
+        connectButton.setPrefHeight(36);
+        connectButton.getStyleClass().add("connect-btn");
+        connectButton.setOnAction(event -> toggleConnection());
+
+        add(labeled("PROTOCOL", protocolBox), 0, 0);
+        add(labeled("HOST", hostShell), 1, 0);
+        add(labeled("PORT", portShell), 2, 0);
+        add(labeled("USERNAME", userShell), 3, 0);
+        add(labeled("PASSWORD", passShell), 4, 0);
+        add(labeled(" ", connectButton), 5, 0);
     }
+
+    public void toggleConnection() {
+        if (connection == null) {
+            String protocol = protocolBox.getValue();
+            if (protocol != null && !"FTP".equals(protocol)) {
+                MainPage.get().getCommandPanel().addMessage("ERROR: This build connects with FTP. " + protocol + " is not available yet.", "RED", true);
+                protocolBox.setValue("FTP");
+                return;
+            }
+            String host = hostField.getText().trim();
+            if (host.isEmpty()) {
+                MainPage.get().getCommandPanel().addMessage("ERROR: Enter a host before connecting.", "RED", true);
+                return;
+            }
+            int port = AppSettings.defaultPort();
+            String portText = portField.getText().trim();
+            if (!portText.isEmpty()) {
+                try {
+                    port = Integer.parseInt(portText);
+                } catch (NumberFormatException ex) {
+                    MainPage.get().getCommandPanel().addMessage("ERROR: Port must be a number.", "RED", true);
+                    return;
+                }
+            }
+            if (port < 1 || port > 65535) {
+                MainPage.get().getCommandPanel().addMessage("ERROR: Port must be between 1 and 65535.", "RED", true);
+                return;
+            }
+            String username = userField.getText();
+            String pass = passField.getText();
+            MainPage.get().getCommandPanel().addMessage("Connecting to " + host + ":" + port, "GRAY", true);
+            connection = new FTPConnect(host, port, username, pass);
+            if (connection.connect()) {
+                MainPage.get().getFtpFilesPanel().setRemoteConnected(true, host);
+                MainPage.get().getFtpFilesPanel().refresh();
+                MainPage.get().getCommandPanel().addMessage("Connected to " + host + ":" + port, "GREEN", true);
+                connectButton.setText("Disconnect");
+                if (!connectButton.getStyleClass().contains("is-connected")) {
+                    connectButton.getStyleClass().add("is-connected");
+                }
+                MainPage.setStatus("Connected to " + host, true);
+            } else {
+                MainPage.get().getCommandPanel().addMessage("ERROR: Failed to connect to " + host + ":" + port, "RED", true);
+                connection = null;
+                MainPage.setStatus("Not connected", false);
+            }
+        } else {
+            MainPage.get().getCommandPanel().addMessage("Disconnected from the server", "GRAY", false);
+            MainPage.get().getFtpFilesPanel().clearRemote();
+            connection.disconnect();
+            connection = null;
+            connectButton.setText("Connect");
+            connectButton.getStyleClass().remove("is-connected");
+            MainPage.setStatus("Not connected", false);
+        }
+    }
+
+    public void focusHost() {
+        hostField.requestFocus();
+    }
+
+    public void usePreset(String host, String port, String username) {
+        if (connection != null) {
+            MainPage.get().getCommandPanel().addMessage("Disconnect before loading another server.", "RED", true);
+            return;
+        }
+        applyPreset(host, port, username);
+        protocolBox.setValue("FTP");
+        if (passField.getText() == null || passField.getText().isEmpty()) {
+            passField.requestFocus();
+            MainPage.get().getCommandPanel().addMessage("Loaded " + host + ". Enter the password, then connect.", "#64748b", false);
+            return;
+        }
+        toggleConnection();
+    }
+
+    private VBox labeled(String caption, Node field) {
+        Label label = new Label(caption);
+        label.getStyleClass().add("field-caption");
+        VBox box = new VBox(4, label, field);
+        box.setAlignment(Pos.BOTTOM_LEFT);
+        return box;
+    }
+
+    private HBox fieldShell(String icon, TextField field, boolean mdl2) {
+        field.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(field, Priority.ALWAYS);
+        HBox shell = new HBox(6);
+        shell.setAlignment(Pos.CENTER_LEFT);
+        shell.getStyleClass().add("input-shell");
+        if (icon != null) {
+            shell.getChildren().add(glyph(icon, mdl2));
+        }
+        shell.getChildren().add(field);
+        watchFocus(shell, field);
+        return shell;
+    }
+
+    private Label glyph(String text, boolean mdl2) {
+        Label label = new Label(text);
+        label.getStyleClass().add(mdl2 ? "mdl2-glyph" : "tool-glyph");
+        return label;
+    }
+
+    private void watchFocus(final HBox shell, Node... nodes) {
+        for (Node node : nodes) {
+            node.focusedProperty().addListener(new ChangeListener<Boolean>() {
+                @Override
+                public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean focused) {
+                    if (focused) {
+                        if (!shell.getStyleClass().contains("shell-focused")) {
+                            shell.getStyleClass().add("shell-focused");
+                        }
+                    } else {
+                        shell.getStyleClass().remove("shell-focused");
+                    }
+                }
+            });
+        }
+    }
+
     public String getHost() {
         return hostField.getText().trim();
     }
@@ -217,13 +300,5 @@ public class LoginPanel extends Panel {
         portField.setText(port);
         userField.setText(username);
         passField.clear();
-    }
-
-    public static String humanReadableByteCount(long bytes, boolean si) {
-        int unit = si ? 1000 : 1024;
-        if (bytes < unit) return bytes + " B";
-        int exp = (int) (Math.log(bytes) / Math.log(unit));
-        String pre = (si ? "KMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
-        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
     }
 }
